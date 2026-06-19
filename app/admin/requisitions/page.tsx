@@ -196,7 +196,7 @@ export default function AdminRequisitionsPage() {
         <nav className="bg-white border border-blue-100 rounded-2xl p-4 sm:p-5 shadow-sm shadow-blue-100/50 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center shadow-md shadow-blue-700/10 overflow-hidden border border-blue-200">
-              <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+              <img src="/Logo.png" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <p className="text-xl font-black tracking-tight text-slate-800 leading-tight">สำเพ็ง บุรีรัมย์</p>

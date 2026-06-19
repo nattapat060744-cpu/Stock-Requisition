@@ -97,7 +97,7 @@ export default function AdminZonesPage() {
         <nav className="bg-white border border-blue-100 rounded-2xl p-4 sm:p-5 shadow-sm shadow-blue-100/50 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center overflow-hidden border border-blue-100">
-              <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+              <img src="/Logo.png" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <span className="font-black text-slate-800 text-sm tracking-tight">สำเพ็ง บุรีรัมย์</span>
           </div>

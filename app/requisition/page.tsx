@@ -356,7 +356,7 @@ export default function RequisitionPage() {
           <div className="relative p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center overflow-hidden border border-blue-100 shadow-inner">
-                <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
+                <img src="/Logo.png" alt="Logo" className="w-full h-full object-cover" />
               </div>
               <div>
                 <h1 className="text-lg sm:text-xl font-black tracking-tight text-slate-800 leading-tight">
