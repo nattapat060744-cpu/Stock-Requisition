@@ -12,7 +12,7 @@ export default function Home() {
         <div className="flex flex-col items-center gap-4">
           <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-[#1a3a6e]/20 shadow-xl shadow-[#1a3a6e]/10">
             <Image
-              src="/logo.png"
+              src="/Logo.png"
               alt="สำเพ็ง บุรีรัมย์"
               width={112}
               height={112}
