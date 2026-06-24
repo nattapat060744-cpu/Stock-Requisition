@@ -41,6 +41,8 @@ export default function Home() {
         <div className="flex flex-col gap-3 w-full">
           <Link
             href="/requisition"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center justify-center gap-2.5 h-14 w-full rounded-2xl bg-linear-to-br from-[#1a3a6e] to-[#112654] text-white font-black text-base shadow-lg shadow-[#1a3a6e]/30 hover:opacity-90 active:scale-[0.98] transition-all"
           >
             <span className="text-xl">📋</span>
@@ -49,6 +51,8 @@ export default function Home() {
 
           <Link
             href="/admin/requisitions"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center justify-center gap-2.5 h-12 w-full rounded-2xl bg-white border-2 border-[#1a3a6e]/15 text-[#1a3a6e] font-bold text-sm shadow-sm hover:border-[#1a3a6e]/30 hover:bg-blue-50 active:scale-[0.98] transition-all"
           >
             <span className="text-lg">🛠️</span>
@@ -57,6 +61,8 @@ export default function Home() {
 
           <Link
             href="/admin/inventory"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center justify-center gap-2.5 h-12 w-full rounded-2xl bg-white border-2 border-[#1a3a6e]/15 text-[#1a3a6e] font-bold text-sm shadow-sm hover:border-[#1a3a6e]/30 hover:bg-blue-50 active:scale-[0.98] transition-all"
           >
             <span className="text-lg">📦</span>
@@ -65,6 +71,8 @@ export default function Home() {
 
           <Link
             href="/admin/dashboard"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center justify-center gap-2.5 h-12 w-full rounded-2xl bg-white border-2 border-[#c8a230]/30 text-[#a07820] font-bold text-sm shadow-sm hover:border-[#c8a230]/50 hover:bg-yellow-50 active:scale-[0.98] transition-all"
           >
             <span className="text-lg">📊</span>

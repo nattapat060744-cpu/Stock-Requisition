@@ -33,6 +33,10 @@ export default function AdminZonesPage() {
   // filter
   const [filterBranch, setFilterBranch] = useState('all');
 
+  // pagination
+  const ZONES_PER_PAGE = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+
   async function loadData() {
     setLoading(true);
     const [{ data: zonesData }, { data: branchesData }] = await Promise.all([
@@ -89,19 +93,34 @@ export default function AdminZonesPage() {
     ? zones
     : zones.filter((z) => z.branch_id === filterBranch);
 
+  const totalPages = Math.max(1, Math.ceil(filteredZones.length / ZONES_PER_PAGE));
+  const pagedZones = filteredZones.slice(
+    (currentPage - 1) * ZONES_PER_PAGE,
+    currentPage * ZONES_PER_PAGE,
+  );
+
+  // Reset to page 1 when filter changes
+  function handleFilterChange(val: string) {
+    setFilterBranch(val);
+    setCurrentPage(1);
+  }
+
   return (
     <div className="min-h-screen bg-[#e8edf5] py-6 sm:py-8 px-3 sm:px-6 lg:px-8 text-slate-800">
       <div className="max-w-4xl mx-auto space-y-5">
 
         {/* ── Nav ── */}
         <nav className="bg-white border border-blue-100 rounded-2xl p-4 sm:p-5 shadow-sm shadow-blue-100/50 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center overflow-hidden border border-blue-100">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center shadow-md shadow-blue-700/10 overflow-hidden border border-blue-200">
               <img src="/Logo.png" alt="Logo" className="w-full h-full object-cover" />
             </div>
-            <span className="font-black text-slate-800 text-sm tracking-tight">สำเพ็ง บุรีรัมย์</span>
+            <div>
+              <p className="text-xl font-black tracking-tight text-slate-800 leading-tight">สำเพ็ง บุรีรัมย์</p>
+              <p className="text-xs font-bold text-blue-700 mt-0.5 uppercase tracking-widest">ระบบจัดการเบิกของ สำเพ็ง บุรีรัมย์</p>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-sm font-bold">
+          <div className="flex items-center gap-1 text-xs font-bold bg-blue-50 p-1 rounded-xl border border-blue-100/80">
             <Link href="/admin/dashboard" className="px-4 py-2 rounded-lg text-slate-500 hover:text-blue-800 hover:bg-white/70 transition-all">📊 แดชบอร์ด</Link>
             <Link href="/admin/requisitions" className="px-4 py-2 rounded-lg text-slate-500 hover:text-blue-800 hover:bg-white/70 transition-all">📝 ใบเบิก</Link>
             <Link href="/admin/reports" className="px-4 py-2 rounded-lg text-slate-500 hover:text-blue-800 hover:bg-white/70 transition-all">📈 รายงาน</Link>
@@ -181,7 +200,7 @@ export default function AdminZonesPage() {
               <div className="relative">
                 <select
                   value={filterBranch}
-                  onChange={(e) => setFilterBranch(e.target.value)}
+                  onChange={(e) => handleFilterChange(e.target.value)}
                   className="pl-3 pr-7 py-1.5 bg-blue-50 border border-blue-100 rounded-lg text-xs font-bold text-blue-800 outline-none appearance-none cursor-pointer"
                 >
                   <option value="all">ทุกแผนก</option>
@@ -204,7 +223,7 @@ export default function AdminZonesPage() {
             </div>
           ) : (
             <div className="divide-y divide-slate-50">
-              {filteredZones.map((zone) => (
+              {pagedZones.map((zone) => (
                 <div key={zone.id} className="p-4 flex items-center gap-4 hover:bg-blue-50/30 transition-colors group">
                   <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
                     <span className="text-base">🗂️</span>
@@ -259,6 +278,31 @@ export default function AdminZonesPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* ── Pagination ── */}
+          {totalPages > 1 && (
+            <div className="px-5 py-4 bg-white border-t border-blue-100 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-500">
+                หน้า {currentPage} จาก {totalPages} ({filteredZones.length} โซน)
+              </span>
+              <div className="flex gap-2">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => prev - 1)}
+                  className="px-4 py-2 bg-blue-50 text-blue-900 rounded-xl text-xs font-bold disabled:opacity-50 hover:bg-blue-100 transition-all"
+                >
+                  ก่อนหน้า
+                </button>
+                <button
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage(prev => prev + 1)}
+                  className="px-4 py-2 bg-blue-50 text-blue-900 rounded-xl text-xs font-bold disabled:opacity-50 hover:bg-blue-100 transition-all"
+                >
+                  ถัดไป
+                </button>
+              </div>
             </div>
           )}
         </div>
