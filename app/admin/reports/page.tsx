@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   table: { display: 'flex', flexDirection: 'column', width: '100%', borderTop: '1px solid #000', borderLeft: '1px solid #000', marginBottom: 20 },
   tableHeader: { flexDirection: 'row', backgroundColor: '#1a3a6e', fontWeight: 'bold' },
   row: { flexDirection: 'row' },
-  cell: { padding: 5, fontSize: 14, borderRight: '1px solid #000', borderBottom: '1px solid #000' },
+  cell: { padding: 5, fontSize: 14, borderRight: '1px solid #000', borderBottom: '1px solid #000', color: '#000000', fontWeight: 'bold',},
   footerRow: { flexDirection: 'row', backgroundColor: '#17386d' },
   signatureContainer: { marginTop: 30 },
   sigRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
@@ -94,19 +94,19 @@ const ReportPDF = ({
           <View style={styles.tableHeader}>
             {type === 'items' ? (
               <>
-                <Text style={[styles.cell, { width: '10%', textAlign: 'center' }]}>ลำดับ</Text>
-                <Text style={[styles.cell, { width: '15%', textAlign: 'center' }]}>ชื่อสาขา</Text>
-                <Text style={[styles.cell, { width: '35%', textAlign: 'center' }]}>รายการ</Text>
-                <Text style={[styles.cell, { width: '10%', textAlign: 'center' }]}>จำนวน</Text>
-                <Text style={[styles.cell, { width: '15%', textAlign: 'center' }]}>หน่วย</Text>
-                <Text style={[styles.cell, { width: '15%', textAlign: 'center' }]}>ราคา(บาท)</Text>
+                <Text style={[styles.cell, { width: '10%', textAlign: 'center', color: '#FFFFFF' }]}>ลำดับ</Text>
+                <Text style={[styles.cell, { width: '15%', textAlign: 'center', color: '#FFFFFF' }]}>ชื่อสาขา</Text>
+                <Text style={[styles.cell, { width: '35%', textAlign: 'center', color: '#FFFFFF' }]}>รายการ</Text>
+                <Text style={[styles.cell, { width: '10%', textAlign: 'center', color: '#FFFFFF' }]}>จำนวน</Text>
+                <Text style={[styles.cell, { width: '15%', textAlign: 'center', color: '#FFFFFF' }]}>หน่วย</Text>
+                <Text style={[styles.cell, { width: '15%', textAlign: 'center', color: '#FFFFFF' }]}>ราคา(บาท)</Text>
               </>
             ) : (
               <>
-                <Text style={[styles.cell, { width: '10%', textAlign: 'center' }]}>ลำดับ</Text>
-                <Text style={[styles.cell, { width: '50%', textAlign: 'center' }]}>ชื่อสาขา</Text>
-                <Text style={[styles.cell, { width: '20%', textAlign: 'center' }]}>จำนวนใบเบิก</Text>
-                <Text style={[styles.cell, { width: '20%', textAlign: 'center' }]}>งบประมาณรวม (บาท)</Text>
+                <Text style={[styles.cell, { width: '10%', textAlign: 'center', color: '#FFFFFF' }]}>ลำดับ</Text>
+                <Text style={[styles.cell, { width: '50%', textAlign: 'center', color: '#FFFFFF' }]}>ชื่อสาขา</Text>
+                <Text style={[styles.cell, { width: '20%', textAlign: 'center', color: '#FFFFFF' }]}>จำนวนใบเบิก</Text>
+                <Text style={[styles.cell, { width: '20%', textAlign: 'center', color: '#FFFFFF' }]}>งบประมาณรวม (บาท)</Text>
               </>
             )}
           </View>
@@ -137,10 +137,10 @@ const ReportPDF = ({
               ))}
 
           <View style={styles.footerRow} wrap={false}>
-            <Text style={[styles.cell, { width: type === 'items' ? '85%' : '80%', textAlign: 'right', paddingRight: 10, fontWeight: 'bold' }]}>
+            <Text style={[styles.cell, { width: type === 'items' ? '85%' : '80%', textAlign: 'right', paddingRight: 10, fontWeight: 'bold', color: '#FFFFFF' }]}>
               รวมยอดสุทธิทั้งสิ้น
             </Text>
-            <Text style={[styles.cell, { width: type === 'items' ? '15%' : '20%', fontWeight: 'bold', textAlign: 'right' }]}>
+            <Text style={[styles.cell, { width: type === 'items' ? '15%' : '20%', fontWeight: 'bold', textAlign: 'right', color: '#FFFFFF' }]}>
               {data.totalBudget.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
             </Text>
           </View>
@@ -459,7 +459,7 @@ export default function AdminReportsPage() {
     worksheet.mergeCells(`A1:${lastCol}1`);
     const titleCell     = worksheet.getCell('A1');
     titleCell.value     = getReportHeaderTitle();
-    titleCell.font      = { bold: true, size: 18 };
+    titleCell.font      = { bold: true, size: 18  };
     titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
     worksheet.getRow(1).height = 30;
 
