@@ -131,7 +131,7 @@ export default function AdminZonesPage() {
 
         {/* ── Header ── */}
         <div className="relative bg-white border border-blue-100/80 rounded-2xl overflow-hidden shadow-sm p-6">
-          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#1a3a6e] via-[#c8a230] to-[#1a3a6e]" />
+          <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-[#1a3a6e] via-[#c8a230] to-[#1a3a6e]" />
           <div className="flex items-center gap-3">
             <span className="text-3xl">🗂️</span>
             <div>
@@ -180,7 +180,7 @@ export default function AdminZonesPage() {
               <button
                 onClick={handleAdd}
                 disabled={saving}
-                className="w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-[#1a3a6e] to-[#2451a0] text-white rounded-xl font-black text-sm hover:opacity-90 active:scale-95 transition-all shadow-md shadow-blue-700/20 disabled:opacity-50"
+                className="w-full sm:w-auto px-6 py-2.5 bg-linear-to-r from-[#1a3a6e] to-[#2451a0] text-white rounded-xl font-black text-sm hover:opacity-90 active:scale-95 transition-all shadow-md shadow-blue-700/20 disabled:opacity-50"
               >
                 {saving ? '...' : '+ เพิ่ม'}
               </button>
