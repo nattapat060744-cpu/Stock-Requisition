@@ -130,7 +130,7 @@ export default function DashboardPage() {
         <div className="bg-white p-5 rounded-2xl shadow-sm shadow-blue-100/50 border border-blue-100 flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex-1">
             <h1 className="text-xl font-black text-slate-800 tracking-tight">📊 แดชบอร์ดภาพรวม</h1>
-            <p className="text-xs font-semibold text-blue-700 mt-1 uppercase tracking-widest">สรุปการเบิกสินค้าแต่ละสาขา</p>
+            <p className="text-xs font-semibold text-blue-700 mt-1 uppercase tracking-widest">สรุปการเบิกสินค้าแต่ละแผนก</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -180,7 +180,7 @@ export default function DashboardPage() {
                 <thead>
                   <tr>
                     <th className="p-4 border-b-2 border-r border-blue-100 text-left font-black text-blue-700 uppercase tracking-wider sticky left-0 bg-blue-50/80 z-20 shadow-[2px_0_8px_-2px_rgba(244,114,182,0.1)] min-w-40">
-                      🏬 สาขา
+                      🏬 แผนก
                     </th>
                     {displayedItems.map((item, i) => (
                       <th key={i} className="p-4 border-b-2 border-r border-blue-100 min-w-35 text-center font-black text-blue-700 uppercase tracking-wide bg-blue-50/80">
@@ -189,7 +189,7 @@ export default function DashboardPage() {
                       </th>
                     ))}
                     <th className="p-4 border-b-2 border-blue-100 text-right font-black text-blue-700 uppercase tracking-wider min-w-35 bg-blue-50/80">
-                      รวมสาขา
+                      รวมแผนก
                     </th>
                   </tr>
                 </thead>

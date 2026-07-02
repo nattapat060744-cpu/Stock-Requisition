@@ -247,7 +247,7 @@ export default function AdminRequisitionsPage() {
           <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
-              placeholder="🔍 ค้นหาสาขาหรือชื่อผู้เบิก..."
+              placeholder="🔍 ค้นหาแผนกหรือชื่อผู้เบิก..."
               value={searchTerm}
               onChange={(e) => handleSearchChange(e.target.value)}
               className="flex-1 h-10 px-4 border border-blue-100 rounded-xl bg-blue-50/50 text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all placeholder:text-slate-400"
@@ -414,7 +414,7 @@ export default function AdminRequisitionsPage() {
                       <p className="font-bold text-slate-700 mt-1">{selectedReq.requester_name}</p>
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">สาขา</p>
+                      <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">แผนก</p>
                       <p className="font-bold text-slate-700 mt-1">{selectedReq.branch_name}</p>
                     </div>
                     <div>

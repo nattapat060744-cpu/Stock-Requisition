@@ -39,7 +39,7 @@ export default function AdminInventoryPage() {
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   
-  // เพิ่ม State สำหรับจัดการสาขา
+  // เพิ่ม State สำหรับจัดการแผนก
   const [allBranches, setAllBranches] = useState<{ id: string, name: string }[]>([]);
 
   async function fetchInventory() {
@@ -50,7 +50,7 @@ export default function AdminInventoryPage() {
     setLoading(false);
   }
 
-  // ฟังก์ชันดึงสาขา
+  // ฟังก์ชันดึงแผนก
   async function fetchBranches() {
     const { data } = await supabase.from('branches').select('*').order('name');
     if (data) setAllBranches(data);
@@ -61,11 +61,11 @@ export default function AdminInventoryPage() {
     fetchBranches();
   }, []);
 
-  // ฟังก์ชันลบสาขา
+  // ฟังก์ชันลบแผนก
   const deleteBranch = async (id: string) => {
-    if (!window.confirm('ยืนยันการลบสาขานี้?')) return;
+    if (!window.confirm('ยืนยันการลบแผนกนี้?')) return;
     const { error } = await supabase.from('branches').delete().eq('id', id);
-    if (error) { alert('ลบสาขาไม่สำเร็จ: ' + error.message); return; }
+    if (error) { alert('ลบแผนกไม่สำเร็จ: ' + error.message); return; }
     fetchBranches();
   };
 
@@ -131,12 +131,12 @@ export default function AdminInventoryPage() {
   };
 
   const handleAddBranch = async () => {
-    if (!newBranchName.trim()) { alert('กรุณากรอกชื่อสาขา'); return; }
+    if (!newBranchName.trim()) { alert('กรุณากรอกชื่อแผนก'); return; }
     const { error } = await supabase.from('branches').insert([{ name: newBranchName.trim() }]);
-    if (error) { alert('เพิ่มสาขาไม่สำเร็จ: ' + error.message); return; }
+    if (error) { alert('เพิ่มแผนกไม่สำเร็จ: ' + error.message); return; }
     setNewBranchName('');
     fetchBranches();
-    alert('เพิ่มสาขาเรียบร้อยแล้ว');
+    alert('เพิ่มแผนกเรียบร้อยแล้ว');
   };
 
   const filteredItems = items.filter(
@@ -188,7 +188,7 @@ export default function AdminInventoryPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-5 rounded-2xl shadow-sm shadow-blue-100/50 border border-blue-100 gap-4">
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-black text-slate-800 tracking-tight">📦 คลังสินค้า</h1>
-            <p className="text-xs font-semibold text-blue-700 mt-1 uppercase tracking-widest">จัดการรายการสินค้าและสาขา</p>
+            <p className="text-xs font-semibold text-blue-700 mt-1 uppercase tracking-widest">จัดการรายการสินค้าและแผนก</p>
           </div>
           <div className="flex gap-2 shrink-0">
           <p className="text-xs text-left font-semibold text-blue-700 mt-1 uppercase tracking-widest">ค้นหารายชื่อสินค้า <br />
@@ -203,7 +203,7 @@ export default function AdminInventoryPage() {
               onClick={() => setIsBranchModalOpen(true)}
               className="inline-flex items-center gap-2 bg-white border border-blue-200 text-blue-800 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-50 shadow-sm transition-all active:scale-95"
             >
-              🏬 จัดการสาขา
+              🏬 จัดการแผนก
             </button>
             <button
               onClick={() => {
@@ -221,10 +221,10 @@ export default function AdminInventoryPage() {
         {isBranchModalOpen && (
           <div className="fixed inset-0 bg-[#1a3a6e]/20 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl border border-blue-100 space-y-4 max-h-[80vh] overflow-y-auto">
-              <h3 className="font-black text-base text-slate-800">🏬 จัดการสาขา</h3>
+              <h3 className="font-black text-base text-slate-800">🏬 จัดการแผนก</h3>
               <div className="flex gap-2">
                 <input
-                  placeholder="ชื่อสาขาใหม่..."
+                  placeholder="ชื่อแผนกใหม่..."
                   value={newBranchName}
                   onChange={(e) => setNewBranchName(e.target.value)}
                   className="flex-1 border border-blue-100 bg-blue-50/30 px-4 py-2 rounded-xl text-sm outline-none"
@@ -442,7 +442,7 @@ export default function AdminInventoryPage() {
                   />
                   <div>
                     <span className="text-sm font-bold text-slate-700">เปิดใช้งานรายการนี้</span>
-                    <p className="text-xs text-slate-400 mt-0.5">สินค้าจะแสดงในหน้าเบิกของสาขา</p>
+                    <p className="text-xs text-slate-400 mt-0.5">สินค้าจะแสดงในหน้าเบิกของแผนก</p>
                   </div>
                 </label>
               </div>

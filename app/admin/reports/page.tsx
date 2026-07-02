@@ -95,7 +95,7 @@ const ReportPDF = ({
             {type === 'items' ? (
               <>
                 <Text style={[styles.cell, { width: '10%', textAlign: 'center', color: '#FFFFFF' }]}>ลำดับ</Text>
-                <Text style={[styles.cell, { width: '15%', textAlign: 'center', color: '#FFFFFF' }]}>ชื่อสาขา</Text>
+                <Text style={[styles.cell, { width: '15%', textAlign: 'center', color: '#FFFFFF' }]}>ชื่อแผนก</Text>
                 <Text style={[styles.cell, { width: '35%', textAlign: 'center', color: '#FFFFFF' }]}>รายการ</Text>
                 <Text style={[styles.cell, { width: '10%', textAlign: 'center', color: '#FFFFFF' }]}>จำนวน</Text>
                 <Text style={[styles.cell, { width: '15%', textAlign: 'center', color: '#FFFFFF' }]}>หน่วย</Text>
@@ -104,7 +104,7 @@ const ReportPDF = ({
             ) : (
               <>
                 <Text style={[styles.cell, { width: '10%', textAlign: 'center', color: '#FFFFFF' }]}>ลำดับ</Text>
-                <Text style={[styles.cell, { width: '50%', textAlign: 'center', color: '#FFFFFF' }]}>ชื่อสาขา</Text>
+                <Text style={[styles.cell, { width: '50%', textAlign: 'center', color: '#FFFFFF' }]}>ชื่อแผนก</Text>
                 <Text style={[styles.cell, { width: '20%', textAlign: 'center', color: '#FFFFFF' }]}>จำนวนใบเบิก</Text>
                 <Text style={[styles.cell, { width: '20%', textAlign: 'center', color: '#FFFFFF' }]}>งบประมาณรวม (บาท)</Text>
               </>
@@ -370,7 +370,7 @@ export default function AdminReportsPage() {
       const parentReq  = filteredReqs.find((r) => r.id === det.requisition_id);
       if (!parentReq)  return;
 
-      const branchName = parentReq.branch_name  || 'ไม่ระบุสาขา';
+      const branchName = parentReq.branch_name  || 'ไม่ระบุแผนก';
       const itemName   = det.items?.name         || 'ไม่ทราบชื่อสินค้า';
       const itemUnit   = det.items?.unit         || 'ชิ้น';
       const qty        = det.quantity             || 0;
@@ -441,7 +441,7 @@ export default function AdminReportsPage() {
       : 'ข้อมูลสะสมทั้งหมด';
 
   const getReportHeaderTitle = () => {
-    if (selectedReportType === 'compare') return 'สรุปรายงานเปรียบเทียบงบประมาณรายสาขา';
+    if (selectedReportType === 'compare') return 'สรุปรายงานเปรียบเทียบงบประมาณรายแผนก';
     return selectedBranch === 'all'
       ? 'สรุปรายละเอียดของในการเบิกสะสมรวมทั้งหมด'
       : `สรุปรายละเอียดการเบิก: ${selectedBranch}`;
@@ -502,7 +502,7 @@ export default function AdminReportsPage() {
         const req = reqMap[det.requisition_id];
         if (!req) return;
 
-        const branchName = req.branch_name     || 'ไม่ระบุสาขา';
+        const branchName = req.branch_name     || 'ไม่ระบุแผนก';
         if (selectedBranch !== 'all' && branchName !== selectedBranch) return;
         const zoneName   = req.zone_name        || '';
         if (selectedZone !== 'all' && zoneName !== selectedZone) return;
@@ -547,7 +547,7 @@ export default function AdminReportsPage() {
 
     // ── Branch summary (ไม่เปลี่ยน logic เดิม) ───────────────────────────
     } else {
-      const headerRow = worksheet.addRow(['ชื่อสาขา', 'จำนวนใบเบิก', 'งบประมาณรวม (บาท)']);
+      const headerRow = worksheet.addRow(['ชื่อแผนก', 'จำนวนใบเบิก', 'งบประมาณรวม (บาท)']);
       styleHeader(headerRow);
       currentData.branchSummaries.forEach((b) => {
         const row = worksheet.addRow([b.branchName, b.totalOrders, b.totalBudget]);
@@ -661,7 +661,7 @@ export default function AdminReportsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-blue-50 pb-4">
             <div>
               <h1 className="text-xl font-black text-slate-800 tracking-tight">📈 สรุปยอดรายงาน</h1>
-              <p className="text-xs font-semibold text-slate-400 mt-1">เลือกประเภทรายงาน ช่วงวันที่ และสาขา</p>
+              <p className="text-xs font-semibold text-slate-400 mt-1">เลือกประเภทรายงาน ช่วงวันที่ และแผนก</p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <PDFDownloadLink
@@ -707,7 +707,7 @@ export default function AdminReportsPage() {
                 onChange={(e) => handleReportTypeChange(e.target.value)}
                 className="w-full h-11 px-4 bg-blue-50/50 border border-blue-100 rounded-xl font-semibold text-sm text-slate-700 outline-none cursor-pointer focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
               >
-                <option value="compare">💵 สรุปยอดเงินรายสาขา</option>
+                <option value="compare">💵 สรุปยอดเงินรายแผนก</option>
                 <option value="items">📦 รายการของที่เบิก</option>
               </select>
             </div>
@@ -829,18 +829,18 @@ export default function AdminReportsPage() {
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black text-slate-700 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-blue-600" />
-                  ตารางสรุปงบประมาณรายสาขา
+                  ตารางสรุปงบประมาณรายแผนก
                 </h3>
                 {currentData.branchSummaries.length > 0 && (
                   <span className="text-xs font-semibold text-slate-400">
-                    {currentData.branchSummaries.length} สาขา
+                    {currentData.branchSummaries.length} แผนก
                   </span>
                 )}
               </div>
               <table className="w-full text-left border-collapse text-sm">
                 <thead>
                   <tr className="bg-blue-50 text-blue-800 font-black uppercase tracking-wide">
-                    <th className="p-3 border border-blue-100">ชื่อสาขา</th>
+                    <th className="p-3 border border-blue-100">ชื่อแผนก</th>
                     <th className="p-3 border border-blue-100 text-center w-36">จำนวนใบเบิก</th>
                     <th className="p-3 border border-blue-100 text-right w-52">งบประมาณที่ใช้ไป</th>
                   </tr>
