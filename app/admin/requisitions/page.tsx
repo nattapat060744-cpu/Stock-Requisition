@@ -530,7 +530,7 @@ export default function AdminRequisitionsPage() {
                                   />
                                 )}
                               </button>
-                              <span className="break-words">{d.items?.name || 'ไม่พบข้อมูลสินค้า'}</span>
+                              <span className="wrap-break-word">{d.items?.name || 'ไม่พบข้อมูลสินค้า'}</span>
                             </div>
                           </td>
                           <td className="py-3 px-2 text-center font-black text-blue-900">{d.quantity}</td>
