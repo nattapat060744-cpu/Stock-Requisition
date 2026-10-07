@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import Link from 'next/link';
+import AdminNav from '@/components/AdminNav';
 import ExcelJS from 'exceljs';
 import {
   PDFDownloadLink,
@@ -637,24 +637,7 @@ export default function AdminReportsPage() {
       <div className="max-w-4xl mx-auto space-y-5 print:max-w-full">
 
         {/* ── Navbar ── */}
-        <nav className="bg-white border border-blue-100 rounded-2xl p-4 sm:p-5 shadow-sm shadow-blue-100/50 flex flex-col sm:flex-row items-center justify-between gap-4 print:hidden">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center shadow-md shadow-blue-700/10 overflow-hidden border border-blue-200">
-              <img src="/Logo.png" alt="Logo" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <p className="text-xl font-black tracking-tight text-slate-800 leading-tight">สำเพ็ง บุรีรัมย์</p>
-              <p className="text-xs font-bold text-blue-700 mt-0.5 uppercase tracking-widest">ระบบจัดการเบิกของ สำเพ็ง บุรีรัมย์</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 text-xs font-bold bg-blue-50 p-1 rounded-xl border border-blue-100/80">
-            <Link href="/admin/dashboard" className="px-4 py-2 rounded-lg text-slate-500 hover:text-blue-800 hover:bg-white/70 transition-all">📊 แดชบอร์ด</Link>
-            <Link href="/admin/requisitions" className="px-4 py-2 rounded-lg text-slate-500 hover:text-blue-800 hover:bg-white/70 transition-all">📝 ใบเบิก</Link>
-            <Link href="/admin/reports" className="bg-white text-blue-900 shadow-sm shadow-blue-100 px-4 py-2 rounded-lg transition-all">📈 รายงาน</Link>
-            <Link href="/admin/inventory" className="px-4 py-2 rounded-lg text-slate-500 hover:text-blue-800 hover:bg-white/70 transition-all">📦 คลัง</Link>
-            <Link href="/admin/zones" className="px-4 py-2 rounded-lg text-slate-500 hover:text-blue-800 hover:bg-white/70 transition-all">🗂️ โซน</Link>
-          </div>
-        </nav>
+        <div className="print:hidden"><AdminNav activeHref="/admin/reports" /></div>
 
         {/* ── Filter Panel ── */}
         <div className="bg-white p-5 rounded-2xl shadow-sm shadow-blue-100/50 border border-blue-100 space-y-5 print:hidden">

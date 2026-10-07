@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import Link from 'next/link';
+import AdminNav from '@/components/AdminNav';
 
 interface Branch {
   id: string;
@@ -110,24 +110,7 @@ export default function AdminZonesPage() {
       <div className="max-w-4xl mx-auto space-y-5">
 
         {/* ── Nav ── */}
-        <nav className="bg-white border border-blue-100 rounded-2xl p-4 sm:p-5 shadow-sm shadow-blue-100/50 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center shadow-md shadow-blue-700/10 overflow-hidden border border-blue-200">
-              <img src="/Logo.png" alt="Logo" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <p className="text-xl font-black tracking-tight text-slate-800 leading-tight">สำเพ็ง บุรีรัมย์</p>
-              <p className="text-xs font-bold text-blue-700 mt-0.5 uppercase tracking-widest">ระบบจัดการเบิกของ สำเพ็ง บุรีรัมย์</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 text-xs font-bold bg-blue-50 p-1 rounded-xl border border-blue-100/80">
-            <Link href="/admin/dashboard" className="px-4 py-2 rounded-lg text-slate-500 hover:text-blue-800 hover:bg-white/70 transition-all">📊 แดชบอร์ด</Link>
-            <Link href="/admin/requisitions" className="px-4 py-2 rounded-lg text-slate-500 hover:text-blue-800 hover:bg-white/70 transition-all">📝 ใบเบิก</Link>
-            <Link href="/admin/reports" className="px-4 py-2 rounded-lg text-slate-500 hover:text-blue-800 hover:bg-white/70 transition-all">📈 รายงาน</Link>
-            <Link href="/admin/inventory" className="px-4 py-2 rounded-lg text-slate-500 hover:text-blue-800 hover:bg-white/70 transition-all">📦 คลัง</Link>
-            <Link href="/admin/zones" className="bg-white text-blue-900 shadow-sm shadow-blue-100 px-4 py-2 rounded-lg transition-all">🗂️ โซน</Link>
-          </div>
-        </nav>
+        <AdminNav activeHref="/admin/zones" />
 
         {/* ── Header ── */}
         <div className="relative bg-white border border-blue-100/80 rounded-2xl overflow-hidden shadow-sm p-6">

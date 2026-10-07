@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import Link from 'next/link';
+import { useNewRequisitions } from '@/hooks/useNewRequisitions';
+import { AdminNavView } from '@/components/AdminNav';
 
 interface Requisition {
   id: string;
@@ -32,6 +33,14 @@ export default function AdminRequisitionsPage() {
   const [details, setDetails]               = useState<RequisitionDetail[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [modalMode, setModalMode]           = useState<'review' | 'view'>('review');
+  const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
+  const imageDialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    if (selectedImage && imageDialogRef.current && !imageDialogRef.current.open) {
+      imageDialogRef.current.showModal();
+    }
+  }, [selectedImage]);
   const [filterStatus, setFilterStatus]     = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [searchTerm, setSearchTerm]         = useState('');
 
@@ -43,6 +52,12 @@ export default function AdminRequisitionsPage() {
   const [pendingCount, setPendingCount]   = useState(0);
   const [approvedCount, setApprovedCount] = useState(0);
   const [rejectedCount, setRejectedCount] = useState(0);
+
+  // จุดแดงแจ้งเตือนใบเบิกใหม่
+  const { newCount, markSeen } = useNewRequisitions();
+  const [newSince, setNewSince] = useState<string | null>(null);
+  const newSinceRef = useRef<string | null>(null);
+  const [openedIds, setOpenedIds] = useState<Set<string>>(() => new Set());
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
@@ -95,6 +110,40 @@ export default function AdminRequisitionsPage() {
   // Fetch counts once on mount (and after status update)
   useEffect(() => { fetchCounts(); }, []);
 
+  // เปิดหน้านี้ = เห็นแล้ว → ล้างจุดแดง
+  useEffect(() => {
+    // Keep the previous visit's marker so new rows remain identifiable
+    // after opening this page clears the navigation notification.
+    if (newSinceRef.current === null) {
+      let previousSeen = '1970-01-01T00:00:00.000Z';
+      try {
+        const saved = localStorage.getItem('admin_requisitions_last_seen');
+        if (saved && !Number.isNaN(Date.parse(saved))) previousSeen = saved;
+      } catch {
+        // Show unread rows when browser storage is unavailable.
+      }
+      newSinceRef.current = previousSeen;
+      setNewSince(previousSeen);
+    }
+    markSeen();
+  }, [markSeen]);
+
+  // มีใบเบิกใหม่เข้ามาขณะเปิดหน้าอยู่ → อัปเดตตัวเลขสรุปทันที
+  useEffect(() => {
+    if (newCount > 0) fetchCounts();
+  }, [newCount]);
+
+  // กดแท็บ "ใบเบิก" / รีเฟรช → ล้างจุดแดง แล้วโหลดหน้า 1 ใหม่
+  const handleSeeNew = () => {
+    markSeen();
+    if (currentPage === 1) {
+      fetchRequisitions(1);
+    } else {
+      setCurrentPage(1);
+    }
+    fetchCounts();
+  };
+
   // ── When filter or search changes, jump back to page 1 ─────────────────
   const handleFilterChange = (s: typeof filterStatus) => {
     setFilterStatus(s);
@@ -117,6 +166,7 @@ export default function AdminRequisitionsPage() {
 
   // ── Modal helpers ───────────────────────────────────────────────────────
   const handleViewDetails = async (req: Requisition, mode: 'review' | 'view') => {
+    setOpenedIds((ids) => new Set(ids).add(req.id));
     setSelectedReq(req);
     setModalMode(mode);
     setLoadingDetails(true);
@@ -193,24 +243,7 @@ export default function AdminRequisitionsPage() {
       <div className="max-w-6xl mx-auto space-y-5">
 
         {/* Navbar */}
-        <nav className="bg-white border border-blue-100 rounded-2xl p-4 sm:p-5 shadow-sm shadow-blue-100/50 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center shadow-md shadow-blue-700/10 overflow-hidden border border-blue-200">
-              <img src="/Logo.png" alt="Logo" className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <p className="text-xl font-black tracking-tight text-slate-800 leading-tight">สำเพ็ง บุรีรัมย์</p>
-              <p className="text-xs font-bold text-blue-700 mt-0.5 uppercase tracking-widest">ระบบจัดการเบิกของ สำเพ็ง บุรีรัมย์</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 text-xs font-bold bg-blue-50 p-1 rounded-xl border border-blue-100/80">
-            <Link href="/admin/dashboard" className="px-4 py-2 rounded-lg text-slate-500 hover:text-blue-800 hover:bg-white/70 transition-all">📊 แดชบอร์ด</Link>
-            <Link href="/admin/requisitions" className="bg-white text-blue-900 shadow-sm shadow-blue-100 px-4 py-2 rounded-lg transition-all">📝 ใบเบิก</Link>
-            <Link href="/admin/reports" className="px-4 py-2 rounded-lg text-slate-500 hover:text-blue-800 hover:bg-white/70 transition-all">📈 รายงาน</Link>
-            <Link href="/admin/inventory" className="px-4 py-2 rounded-lg text-slate-500 hover:text-blue-800 hover:bg-white/70 transition-all">📦 คลัง</Link>
-            <Link href="/admin/zones" className="px-4 py-2 rounded-lg text-slate-500 hover:text-blue-800 hover:bg-white/70 transition-all">🗂️ โซน</Link>
-          </div>
-        </nav>
+        <AdminNavView activeHref="/admin/requisitions" newCount={newCount} onRequisitionsClick={handleSeeNew} />
 
         {/* Page Header */}
         <div className="bg-white p-5 rounded-2xl shadow-sm shadow-blue-100/50 border border-blue-100 space-y-4">
@@ -220,7 +253,7 @@ export default function AdminRequisitionsPage() {
               <p className="text-xs font-semibold text-blue-700 mt-1 uppercase tracking-widest">ตรวจสอบและอนุมัติ</p>
             </div>
             <button
-              onClick={() => fetchRequisitions(currentPage)}
+              onClick={handleSeeNew}
               className="inline-flex items-center gap-2 bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-100 px-4 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95"
             >
               🔄 รีเฟรช
@@ -303,7 +336,17 @@ export default function AdminRequisitionsPage() {
                           <td className="p-4">
                             <span className="text-sm font-semibold text-slate-500">{req.requester_name}</span>
                           </td>
-                          <td className="p-4">{getStatusBadge(req.status)}</td>
+                                                    <td className="p-4">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {getStatusBadge(req.status)}
+                              {newSince !== null && Date.parse(req.created_at) > Date.parse(newSince) && !openedIds.has(req.id) && (
+                                <span className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-bold text-red-600">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden="true" />
+                                  ใหม่
+                                </span>
+                              )}
+                            </div>
+                          </td>
                           <td className="p-4 text-right">
                             {req.status === 'pending' ? (
                               <button
@@ -380,10 +423,33 @@ export default function AdminRequisitionsPage() {
         )}
       </div>
 
+      {selectedImage && (
+        <dialog
+          ref={imageDialogRef}
+          aria-label={`รูปสินค้า ${selectedImage.name}`}
+          onClose={() => setSelectedImage(null)}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) imageDialogRef.current?.close();
+          }}
+          className="fixed inset-0 m-auto h-dvh w-screen max-h-none max-w-none border-0 bg-transparent p-4 outline-none backdrop:bg-slate-950/80 open:flex open:items-center open:justify-center"
+        >
+          <div className="relative max-w-5xl rounded-2xl border border-blue-100 bg-white p-3 shadow-2xl sm:p-5">
+            <button
+              type="button"
+              autoFocus
+              aria-label="ปิดรูปขยาย"
+              onClick={() => imageDialogRef.current?.close()}
+              className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[#1a3a6e] text-xl font-bold text-white shadow-md hover:bg-blue-700"
+            >×</button>
+            <img src={selectedImage.url} alt={selectedImage.name} className="max-h-[75dvh] max-w-full rounded-xl object-contain" />
+            <p className="mt-3 text-center text-sm font-bold text-[#1a3a6e]">{selectedImage.name}</p>
+          </div>
+        </dialog>
+      )}
       {/* ── Detail Modal ── */}
       {selectedReq && (
         <div className="fixed inset-0 bg-[#1a3a6e]/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl shadow-blue-200/50 overflow-hidden border border-blue-100">
+          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl shadow-blue-200/50 overflow-hidden border border-blue-100">
             <div className="bg-linear-to-r from-[#1a3a6e] to-[#112654] text-white p-5 flex items-start justify-between">
               <div>
                 <h3 className="font-black text-base tracking-tight">
@@ -441,7 +507,32 @@ export default function AdminRequisitionsPage() {
                     <tbody className="divide-y divide-blue-50">
                       {details.map((d) => (
                         <tr key={d.id} className="text-slate-700 hover:bg-blue-50/50">
-                          <td className="py-3 px-2 font-semibold">{d.items?.name}</td>
+                                                    <td className="py-3 px-2 font-semibold">
+                            <div className="flex items-center gap-3">
+                                                            <button
+                                type="button"
+                                disabled={!d.items?.image_url}
+                                onClick={() => {
+                                  if (d.items?.image_url) setSelectedImage({ url: d.items.image_url, name: d.items.name });
+                                }}
+                                aria-label={`ขยายรูป ${d.items?.name || 'สินค้า'}`}
+                                title={d.items?.image_url ? 'กดเพื่อขยายรูป' : 'ไม่มีรูปสินค้า'}
+                                className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-blue-100 bg-blue-50 enabled:cursor-zoom-in enabled:hover:ring-2 enabled:hover:ring-blue-400 focus-visible:outline-2 focus-visible:outline-blue-700"
+                              >
+                                <span className="text-2xl" aria-hidden="true">📦</span>
+                                {d.items?.image_url && (
+                                  <img
+                                    src={d.items.image_url}
+                                    alt={d.items.name}
+                                    loading="lazy"
+                                    className="absolute inset-0 h-full w-full bg-white object-contain p-1"
+                                    onError={(event) => { event.currentTarget.style.display = 'none'; }}
+                                  />
+                                )}
+                              </button>
+                              <span className="break-words">{d.items?.name || 'ไม่พบข้อมูลสินค้า'}</span>
+                            </div>
+                          </td>
                           <td className="py-3 px-2 text-center font-black text-blue-900">{d.quantity}</td>
                           <td className="py-3 px-2 text-center text-slate-500">{d.items?.unit}</td>
                           <td className="py-3 px-2 text-right font-bold text-slate-700">
