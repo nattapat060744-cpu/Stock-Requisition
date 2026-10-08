@@ -537,6 +537,7 @@ export default function AdminRequisitionsPage() {
                           <td className="py-3 px-2 text-center text-slate-500">{d.items?.unit}</td>
                           <td className="py-3 px-2 text-right font-bold text-slate-700">
                             {(d.price_at_time || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                            
                           </td>
                         </tr>
                       ))}

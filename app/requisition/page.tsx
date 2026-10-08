@@ -8,6 +8,7 @@ interface Item {
   name: string;
   unit: string;
   image_url: string | null;
+  stock_quantity: number | null;
 }
 
 interface CartItem extends Item {
@@ -215,14 +216,23 @@ export default function RequisitionPage() {
 
   useEffect(() => {
     async function fetchData() {
-      const [{ data: itemsData }, { data: branchesData }] = await Promise.all([
-        supabase.from('items').select('id, name, unit, image_url').eq('is_active', true).order('name'),
+      const [{ data: itemsData, error: itemsError }, { data: branchesData }] = await Promise.all([
+        supabase.from('items').select('id, name, unit, image_url, stock_quantity').eq('is_active', true).order('name'),
         supabase.from('branches').select('id, name').order('name'),
       ]);
+      if (itemsError) alert('โหลดจำนวนสินค้าไม่สำเร็จ กรุณาตรวจสอบว่าเพิ่มคอลัมน์จำนวนคงเหลือในฐานข้อมูลแล้ว');
       if (itemsData)    setItems(itemsData);
       if (branchesData) setBranches(branchesData);
     }
     fetchData();
+    const refreshStock = async () => {
+      if (document.visibilityState !== 'visible') return;
+      const { data } = await supabase.from('items').select('id, name, unit, image_url, stock_quantity').eq('is_active', true).order('name');
+      if (data) setItems(data);
+    };
+    const timer = setInterval(refreshStock, 15_000);
+    window.addEventListener('focus', refreshStock);
+    return () => { clearInterval(timer); window.removeEventListener('focus', refreshStock); };
   }, []);
 
   // โหลดโซนเมื่อเลือกแผนกจัดเรียง
@@ -249,7 +259,15 @@ export default function RequisitionPage() {
     currentPage * ITEMS_PER_PAGE,
   );
 
+  const warnStock = (item: Item, quantity: number) => {
+    if (item.stock_quantity != null && quantity > item.stock_quantity) {
+      alert('สินค้า ' + item.name + ' คงเหลือ ' + item.stock_quantity + ' ' + item.unit + ' แต่คุณกำลังสั่ง ' + quantity + ' กรุณาลดจำนวน');
+      return true;
+    }
+    return false;
+  };
   const addToCart = (item: Item) => {
+    if (loading || warnStock(item, (cart.find((c) => c.id === item.id)?.quantity ?? 0) + 1)) return;
     setClickedItemId(item.id);
     setCartBounce(true);
     setTimeout(() => setClickedItemId(null), 800);
@@ -265,10 +283,14 @@ export default function RequisitionPage() {
     });
   };
 
-  const updateQuantity = (id: string, amount: number) =>
-    setCart((prev) => prev.map((item) =>
-      item.id === id ? { ...item, quantity: Math.max(1, item.quantity + amount) } : item
-    ));
+  const updateQuantity = (id: string, amount: number) => {
+    if (loading) return;
+    const current = cart.find((item) => item.id === id);
+    if (!current) return;
+    const quantity = Math.max(1, current.quantity + amount);
+    if (amount > 0 && warnStock(items.find((item) => item.id === id) ?? current, quantity)) return;
+    setCart((prev) => prev.map((item) => item.id === id ? { ...item, quantity } : item));
+  };
 
   const removeFromCart = (id: string) =>
     setCart((prev) => prev.filter((item) => item.id !== id));
@@ -281,13 +303,33 @@ export default function RequisitionPage() {
     if (branchName === 'จัดเรียง' && !zoneName.trim()) { alert('กรุณาเลือกโซน'); return; }
     if (!requesterName.trim()) { alert('กรุณากรอกชื่อผู้เบิก'); return; }
     if (cart.length === 0)    { alert('กรุณาเลือกสินค้าอย่างน้อย 1 รายการ'); return; }
+    if (cart.some((item) => warnStock(items.find((latest) => latest.id === item.id) ?? item, item.quantity))) return;
     setIsCartOpen(false);
     setShowConfirmModal(true);
   };
 
   const handleConfirmSubmit = async () => {
     setShowConfirmModal(false);
+    if (loading) return;
     setLoading(true);
+    const { data: available, error: stockError } = await supabase.from('items')
+      .select('id, name, unit, image_url, stock_quantity, price, is_active').in('id', cart.map((item) => item.id));
+    if (stockError || !available) {
+      alert('ตรวจสอบจำนวนคงเหลือไม่สำเร็จ กรุณาลองอีกครั้ง'); setLoading(false); return;
+    }
+    setItems((prev) => prev.map((item) => available.find((latest) => latest.id === item.id) ?? item));
+    const stockWarnings = cart.flatMap((item) => {
+      const latest = available.find((row) => row.id === item.id);
+      if (!latest || !latest.is_active) return [item.name + ' ไม่เปิดให้เบิกแล้ว'];
+      if (latest.stock_quantity != null && item.quantity > latest.stock_quantity) {
+        return [item.name + ': สั่ง ' + item.quantity + ' แต่คงเหลือ ' + latest.stock_quantity + ' ' + item.unit];
+      }
+      return [];
+    });
+    if (stockWarnings.length) {
+      alert('จำนวนสินค้าไม่เพียงพอ กรุณาแก้ไขรายการก่อนส่งใบเบิก:\n' + stockWarnings.join('\n'));
+      setIsCartOpen(true); setLoading(false); return;
+    }
 
     const { data: reqData, error: reqError } = await supabase
       .from('requisitions')
@@ -307,7 +349,7 @@ export default function RequisitionPage() {
       return;
     }
 
-    const { data: dbItems } = await supabase.from('items').select('id, price');
+    const dbItems = available;
     const detailRows = cart.map((item) => ({
       requisition_id: reqData.id,
       item_id: item.id,
@@ -427,6 +469,7 @@ export default function RequisitionPage() {
                 </div>
               ) : (
                 pagedItems.map((item) => {
+                  const soldOut = item.stock_quantity === 0;
                   const isClicked = clickedItemId === item.id;
                   const inCart    = cart.find((c) => c.id === item.id);
                   return (
@@ -442,10 +485,15 @@ export default function RequisitionPage() {
                     >
                       <div className="relative aspect-square bg-slate-50 overflow-hidden">
                         {item.image_url ? (
-                          <img src={item.image_url} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          <img src={item.image_url} alt={item.name} className={"w-full h-full object-cover transition-transform duration-300 " + (soldOut ? "grayscale opacity-40" : "group-hover:scale-105")} />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <span className="text-4xl opacity-20">📦</span>
+                          </div>
+                        )}
+                        {soldOut && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-slate-200/40">
+                            <span className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-red-500/85 text-xl font-black text-white shadow-lg">หมด</span>
                           </div>
                         )}
                         {inCart && (
@@ -464,10 +512,12 @@ export default function RequisitionPage() {
                         <h4 className="font-bold text-slate-800 text-xs leading-snug line-clamp-2 group-hover:text-blue-900 transition-colors flex-1">
                           {item.name}
                         </h4>
+                        {item.stock_quantity != null && <p className="text-[10px] font-semibold text-slate-500">คงเหลือ {item.stock_quantity.toLocaleString('th-TH')} {item.unit}</p>}
                         <button
                           type="button"
+                          disabled={soldOut || loading}
                           onClick={() => addToCart(item)}
-                          className={`w-full py-2 rounded-xl font-black text-xs active:scale-95 transition-all border ${
+                          className={`w-full py-2 rounded-xl font-black text-xs active:scale-95 transition-all border disabled:bg-slate-100 disabled:border-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed ${
                             isClicked
                               ? 'bg-red-600 border-blue-800 text-white shadow-md shadow-blue-200'
                               : inCart
@@ -475,7 +525,7 @@ export default function RequisitionPage() {
                               : 'bg-blue-50 border-blue-100 text-blue-900 hover:bg-blue-500 hover:text-white hover:border-blue-500 hover:shadow-md hover:shadow-blue-200/50'
                           }`}
                         >
-                          {isClicked ? '✓ เพิ่มแล้ว' : inCart ? `+ เพิ่ม (${inCart.quantity})` : '+ เพิ่มในตะกร้า'}
+                          {soldOut ? 'สินค้าหมด' : isClicked ? '✓ เพิ่มแล้ว' : inCart ? `+ เพิ่ม (${inCart.quantity})` : '+ เพิ่มในตะกร้า'}
                         </button>
                       </div>
                     </div>

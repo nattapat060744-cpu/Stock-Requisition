@@ -10,6 +10,7 @@ interface InventoryItem {
   name: string;
   unit: string;
   price: number;
+  stock_quantity: number | null;
   is_active: boolean;
   image_url: string;
 }
@@ -25,13 +26,12 @@ export default function AdminInventoryPage() {
     name: '',
     unit: '',
     price: 0,
+    stock_quantity: null as number | null,
     is_active: true,
     image_url: '',
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
-  const [newBranchName, setNewBranchName] = useState('');
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25;
@@ -39,8 +39,6 @@ export default function AdminInventoryPage() {
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   
-  // เพิ่ม State สำหรับจัดการแผนก
-  const [allBranches, setAllBranches] = useState<{ id: string, name: string }[]>([]);
 
   async function fetchInventory() {
     setLoading(true);
@@ -50,24 +48,11 @@ export default function AdminInventoryPage() {
     setLoading(false);
   }
 
-  // ฟังก์ชันดึงแผนก
-  async function fetchBranches() {
-    const { data } = await supabase.from('branches').select('*').order('name');
-    if (data) setAllBranches(data);
-  }
 
   useEffect(() => {
     fetchInventory();
-    fetchBranches();
   }, []);
 
-  // ฟังก์ชันลบแผนก
-  const deleteBranch = async (id: string) => {
-    if (!window.confirm('ยืนยันการลบแผนกนี้?')) return;
-    const { error } = await supabase.from('branches').delete().eq('id', id);
-    if (error) { alert('ลบแผนกไม่สำเร็จ: ' + error.message); return; }
-    fetchBranches();
-  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -101,25 +86,37 @@ export default function AdminInventoryPage() {
       return;
     }
 
+    if (formData.stock_quantity !== null && (!Number.isSafeInteger(formData.stock_quantity) || formData.stock_quantity < 0 || formData.stock_quantity > 2147483647)) {
+      alert('กรุณากรอกจำนวนสินค้าเป็นจำนวนเต็มตั้งแต่ 0 ถึง 2,147,483,647');
+      return;
+    }
     const dataToSave = {
       product_code: formData.product_code.trim(),
       name: formData.name.trim(),
       unit: formData.unit.trim(),
       price: Number(formData.price) || 0,
+      stock_quantity: formData.stock_quantity,
       is_active: formData.is_active,
       image_url: formData.image_url,
     };
 
     if (editingItem?.id) {
-      const { error } = await supabase.from('items').update(dataToSave).eq('id', editingItem.id);
+      const originalStock = editingItem.stock_quantity ?? null;
+      const { stock_quantity, ...otherFields } = dataToSave;
+      const stockChanged = stock_quantity !== originalStock;
+      let query = supabase.from('items').update(stockChanged ? dataToSave : otherFields).eq('id', editingItem.id);
+      // Do not overwrite goods received from a PO while this form was open.
+      if (stockChanged) query = originalStock === null ? query.is('stock_quantity', null) : query.eq('stock_quantity', originalStock);
+      const { data: updated, error } = await query.select('id').maybeSingle();
       if (error) { alert('บันทึกไม่สำเร็จ: ' + error.message); return; }
+      if (!updated) { alert('ยอดสินค้าเปลี่ยนระหว่างที่เปิดฟอร์ม กรุณาปิดแล้วเปิดสินค้าใหม่เพื่อดูยอดล่าสุดก่อนแก้ไข'); return; }
     } else {
       const { error } = await supabase.from('items').insert(dataToSave);
       if (error) { alert('เพิ่มสินค้าไม่สำเร็จ: ' + error.message); return; }
     }
 
     setEditingItem(null);
-    setFormData({ product_code: '', name: '', unit: '', price: 0, is_active: true, image_url: '' });
+    setFormData({ product_code: '', name: '', unit: '', price: 0, stock_quantity: null, is_active: true, image_url: '' });
     await fetchInventory();
   };
 
@@ -130,14 +127,6 @@ export default function AdminInventoryPage() {
     fetchInventory();
   };
 
-  const handleAddBranch = async () => {
-    if (!newBranchName.trim()) { alert('กรุณากรอกชื่อแผนก'); return; }
-    const { error } = await supabase.from('branches').insert([{ name: newBranchName.trim() }]);
-    if (error) { alert('เพิ่มแผนกไม่สำเร็จ: ' + error.message); return; }
-    setNewBranchName('');
-    fetchBranches();
-    alert('เพิ่มแผนกเรียบร้อยแล้ว');
-  };
 
   const filteredItems = items.filter(
     (item) =>
@@ -171,7 +160,7 @@ export default function AdminInventoryPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-5 rounded-2xl shadow-sm shadow-blue-100/50 border border-blue-100 gap-4">
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-black text-slate-800 tracking-tight">📦 คลังสินค้า</h1>
-            <p className="text-xs font-semibold text-blue-700 mt-1 uppercase tracking-widest">จัดการรายการสินค้าและแผนก</p>
+            <p className="text-xs font-semibold text-blue-700 mt-1 uppercase tracking-widest">จัดการรายการสินค้าและจำนวนคงเหลือ</p>
           </div>
           <div className="flex gap-2 shrink-0">
           <p className="text-xs text-left font-semibold text-blue-700 mt-1 uppercase tracking-widest">ค้นหารายชื่อสินค้า <br />
@@ -182,16 +171,10 @@ export default function AdminInventoryPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="mt-3 text-sm border border-blue-100 bg-blue-50 px-4 py-2.5 rounded-xl w-full sm:w-72 outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all font-medium text-slate-700 placeholder:text-slate-400"
             /></p>
-            <button
-              onClick={() => setIsBranchModalOpen(true)}
-              className="inline-flex items-center gap-2 bg-white border border-blue-200 text-blue-800 px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-50 shadow-sm transition-all active:scale-95"
-            >
-              🏬 จัดการแผนก
-            </button>
-            <button
+<button
               onClick={() => {
-                setEditingItem({ id: '', product_code: '', name: '', unit: '', price: 0, is_active: true, image_url: '' });
-                setFormData({ product_code: '', name: '', unit: '', price: 0, is_active: true, image_url: '' });
+                setEditingItem({ id: '', product_code: '', name: '', unit: '', price: 0, stock_quantity: null, is_active: true, image_url: '' });
+                setFormData({ product_code: '', name: '', unit: '', price: 0, stock_quantity: null, is_active: true, image_url: '' });
               }}
               className="inline-flex items-center gap-2 bg-linear-to-r from-blue-700 to-blue-800 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:from-blue-800 hover:to-blue-900 shadow-md shadow-blue-200/50 transition-all active:scale-95"
             >
@@ -199,33 +182,6 @@ export default function AdminInventoryPage() {
             </button>
           </div>
         </div>
-
-        {/* ── Branch Modal (อัปเดตใหม่) ── */}
-        {isBranchModalOpen && (
-          <div className="fixed inset-0 bg-[#1a3a6e]/20 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl border border-blue-100 space-y-4 max-h-[80vh] overflow-y-auto">
-              <h3 className="font-black text-base text-slate-800">🏬 จัดการแผนก</h3>
-              <div className="flex gap-2">
-                <input
-                  placeholder="ชื่อแผนกใหม่..."
-                  value={newBranchName}
-                  onChange={(e) => setNewBranchName(e.target.value)}
-                  className="flex-1 border border-blue-100 bg-blue-50/30 px-4 py-2 rounded-xl text-sm outline-none"
-                />
-                <button onClick={handleAddBranch} className="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold">เพิ่ม</button>
-              </div>
-              <div className="space-y-2 pt-2 border-t">
-                {allBranches.map((b) => (
-                  <div key={b.id} className="flex items-center justify-between bg-blue-50/50 p-3 rounded-xl">
-                    <span className="text-sm font-bold text-slate-700">{b.name}</span>
-                    <button onClick={() => deleteBranch(b.id)} className="text-red-500 text-xs font-bold hover:bg-red-100 px-3 py-1.5 rounded-lg transition-all">ลบ</button>
-                  </div>
-                ))}
-              </div>
-              <button onClick={() => setIsBranchModalOpen(false)} className="w-full py-2.5 bg-slate-100 text-slate-600 rounded-xl text-sm font-bold mt-2">ปิด</button>
-            </div>
-          </div>
-        )}
 
         <div className="bg-white rounded-2xl shadow-sm shadow-blue-100/50 border border-blue-100 overflow-hidden">
           <div className="overflow-x-auto">
@@ -235,6 +191,7 @@ export default function AdminInventoryPage() {
                   <th className="p-4 font-black text-blue-700 uppercase tracking-wider">รูปภาพ</th>
                   <th className="p-4 font-black text-blue-700 uppercase tracking-wider">รหัสสินค้า</th>
                   <th className="p-4 font-black text-blue-700 uppercase tracking-wider">ชื่อสินค้า</th>
+                  <th className="p-4 font-black text-blue-700 uppercase tracking-wider text-center">จำนวนคงเหลือ</th>
                   <th className="p-4 font-black text-blue-700 uppercase tracking-wider text-center">หน่วยนับ</th>
                   <th className="p-4 font-black text-blue-700 uppercase tracking-wider text-right">ราคา / หน่วย</th>
                   <th className="p-4 font-black text-blue-700 uppercase tracking-wider text-center">สถานะ</th>
@@ -244,7 +201,7 @@ export default function AdminInventoryPage() {
               <tbody className="divide-y divide-blue-50">
                 {currentItems.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-24 text-center text-blue-400 font-bold text-sm tracking-wide">
+                    <td colSpan={8} className="py-24 text-center text-blue-400 font-bold text-sm tracking-wide">
                       <div className="flex flex-col items-center gap-2">
                         <span className="text-3xl">📦</span>
                         {searchTerm ? `ไม่พบรายการ "${searchTerm}"` : 'ยังไม่มีสินค้าในระบบ'}
@@ -278,6 +235,13 @@ export default function AdminInventoryPage() {
                         <p className="font-bold text-slate-800 text-sm">{item.name}</p>
                       </td>
                       <td className="p-4 text-center">
+                        {item.stock_quantity == null ? <span className="text-xs text-slate-400">ยังไม่ระบุ</span> : (
+                          <span className={item.stock_quantity === 0 ? 'font-bold text-red-600' : 'font-bold text-blue-900'}>
+                            {item.stock_quantity.toLocaleString('th-TH')} <span className="text-xs font-medium">{item.unit}</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-4 text-center">
                         <span className="inline-block bg-blue-50 text-blue-900 px-3 py-1 rounded-lg text-xs font-bold">
                           {item.unit}
                         </span>
@@ -295,7 +259,7 @@ export default function AdminInventoryPage() {
                       <td className="p-4">
                         <div className="flex items-center justify-center gap-2">
                           <button
-                            onClick={() => { setEditingItem(item); setFormData(item); }}
+                            onClick={() => { setEditingItem(item); setFormData({ ...item, stock_quantity: item.stock_quantity ?? null }); }}
                             className="text-xs font-bold text-blue-800 hover:text-white hover:bg-blue-500 border border-blue-200 px-3 py-1.5 rounded-lg transition-all active:scale-95"
                           >
                             แก้ไข
@@ -349,17 +313,17 @@ export default function AdminInventoryPage() {
 
         {editingItem && (
           <div className="fixed inset-0 bg-[#1a3a6e]/20 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-2xl shadow-blue-200/50 border border-blue-100 space-y-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center gap-3 pb-3 border-b border-blue-50">
+            <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl shadow-blue-200/50 border border-blue-100 flex flex-col max-h-[calc(100dvh-2rem)] overflow-hidden">
+              <div className="flex shrink-0 items-center gap-3 p-5 border-b border-blue-50">
                 <div className="w-9 h-9 rounded-xl bg-linear-to-br from-[#1a3a6e] to-[#2451a0] flex items-center justify-center text-white shadow-sm text-base">
                   {editingItem.id ? '✏️' : '✨'}
                 </div>
                 <h3 className="font-black text-base text-slate-800">{editingItem.id ? 'แก้ไขข้อมูลสินค้า' : 'เพิ่มสินค้าใหม่'}</h3>
               </div>
-              <div className="space-y-4">
-                <div className="space-y-2">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 sm:p-6 grid gap-6 md:grid-cols-[240px_minmax(0,1fr)] items-start">
+                <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
                   <label className="text-xs font-black text-blue-700 uppercase tracking-widest">รูปภาพสินค้า</label>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept="image/*" />
                     <button
                       type="button"
@@ -374,9 +338,10 @@ export default function AdminInventoryPage() {
                     )}
                   </div>
                   {formData.image_url && (
-                    <img src={formData.image_url} alt="preview" className="w-20 h-20 object-cover rounded-xl border border-blue-100 shadow-sm" />
+                    <img src={formData.image_url} alt="preview" className="w-full h-44 md:h-56 object-contain rounded-xl border border-blue-100 bg-white p-3 shadow-sm" />
                   )}
                 </div>
+                <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <label className="text-xs font-black text-blue-700 uppercase tracking-widest">รหัสสินค้า</label>
                   <input
@@ -386,7 +351,7 @@ export default function AdminInventoryPage() {
                     className="w-full border border-blue-100 bg-blue-50/30 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 sm:col-span-2">
                   <label className="text-xs font-black text-blue-700 uppercase tracking-widest">ชื่อสินค้า <span className="text-red-500">*</span></label>
                   <input
                     placeholder="ชื่อสินค้า"
@@ -416,7 +381,15 @@ export default function AdminInventoryPage() {
                     className="w-full border border-blue-100 bg-blue-50/30 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
                   />
                 </div>
-                <label className="flex items-center gap-3 cursor-pointer p-3 bg-blue-50/40 hover:bg-blue-50 border border-blue-100/60 rounded-xl transition-all">
+                <div className="space-y-1.5">
+                  <label htmlFor="stock-quantity" className="text-xs font-black text-blue-700">จำนวนคงเหลือ ({formData.unit || 'หน่วยนับ'})</label>
+                  <input id="stock-quantity" type="number" min="0" max="2147483647" step="1" placeholder="ยังไม่ระบุ"
+                    value={formData.stock_quantity ?? ''}
+                    onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value === '' ? null : Number(e.target.value) })}
+                    className="w-full border border-blue-100 bg-blue-50/30 px-4 py-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-300" />
+                  <p className="text-xs text-slate-400">จำนวนตามหน่วยสินค้า เช่น 10 ชิ้น หรือ 5 กล่อง</p>
+                </div>
+                <label className="sm:col-span-2 flex items-center gap-3 cursor-pointer p-3 bg-blue-50/40 hover:bg-blue-50 border border-blue-100/60 rounded-xl transition-all">
                   <input
                     type="checkbox"
                     checked={formData.is_active}
@@ -429,9 +402,10 @@ export default function AdminInventoryPage() {
                   </div>
                 </label>
               </div>
-              <div className="flex gap-2 pt-1">
-                <button onClick={() => { setEditingItem(null); }} className="flex-1 py-3 bg-blue-50 text-blue-700 border border-blue-100 rounded-xl font-bold text-sm hover:bg-blue-100 transition-all">ยกเลิก</button>
-                <button onClick={handleSave} disabled={uploading} className="flex-1 py-3 bg-linear-to-r from-blue-700 to-blue-800 text-white rounded-xl font-black text-sm hover:from-blue-800 hover:to-blue-900 shadow-md shadow-blue-200 transition-all disabled:opacity-60">บันทึกข้อมูล</button>
+              </div>
+              <div className="flex shrink-0 justify-end gap-3 border-t border-blue-100 bg-blue-50/30 p-4 sm:px-6">
+                <button onClick={() => { setEditingItem(null); }} className="flex-1 sm:flex-none sm:min-w-36 px-6 py-3 bg-blue-50 text-blue-700 border border-blue-100 rounded-xl font-bold text-sm hover:bg-blue-100 transition-all">ยกเลิก</button>
+                <button onClick={handleSave} disabled={uploading} className="flex-1 sm:flex-none sm:min-w-36 px-6 py-3 bg-linear-to-r from-blue-700 to-blue-800 text-white rounded-xl font-black text-sm hover:from-blue-800 hover:to-blue-900 shadow-md shadow-blue-200 transition-all disabled:opacity-60">บันทึกข้อมูล</button>
               </div>
             </div>
           </div>
