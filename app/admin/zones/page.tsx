@@ -25,6 +25,7 @@ async function readManagementData() {
  if (branchResult.error) throw branchResult.error;
  return { zones: zoneResult.data ?? [], branches: branchResult.data ?? [] };
 }
+
 export default function AdminZonesPage() {
   const [zones, setZones]           = useState<Zone[]>([]);
   const [branches, setBranches]     = useState<Branch[]>([]);
@@ -50,6 +51,9 @@ export default function AdminZonesPage() {
   const ZONES_PER_PAGE = 20;
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Drag and drop state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
   const applyData = useCallback((data: Awaited<ReturnType<typeof readManagementData>>) => {
     setBranches(data.branches);
     setNewBranchId((previous) => data.branches.some((branch) => branch.id === previous) ? previous : data.branches.find((branch) => branch.name === 'จัดเรียง')?.id ?? '');
@@ -58,11 +62,13 @@ export default function AdminZonesPage() {
     setLoadError('');
     setLoading(false);
   }, []);
+
   async function loadData() {
     setLoading(true);
     try { applyData(await readManagementData()); }
     catch { setLoadError('โหลดแผนกและโซนไม่สำเร็จ กรุณาลองอีกครั้ง'); setLoading(false); }
   }
+
   useEffect(() => {
     let alive = true;
     void readManagementData().then((data) => { if (alive) applyData(data); })
@@ -82,6 +88,7 @@ export default function AdminZonesPage() {
       setBranchName(''); await loadData();
     } finally { branchBusy.current = false; setSavingBranch(false); }
   }
+
   async function removeBranch(branch: Branch) {
     if (branchBusy.current) return;
     if (!window.confirm('ยืนยันลบแผนก “' + branch.name + '”?')) return;
@@ -124,6 +131,38 @@ export default function AdminZonesPage() {
     loadData();
   }
 
+  // ── ฟังก์ชันลากวาง (Drag and Drop สลับตำแหน่งบนหน้าจอ) ──
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) return;
+
+    // สลับตำแหน่งใน State ทันทีเพื่อให้แสดงผลลื่นไหล
+    const updatedZones = [...zones];
+    const filtered = filteredZones;
+    const movedItem = filtered[draggedIndex];
+    
+    // หาตำแหน่งจริงใน zones ทั้งหมดแล้วสลับ
+    const realIndexFrom = zones.findIndex(z => z.id === movedItem.id);
+    const realIndexTo = zones.findIndex(z => z.id === filtered[targetIndex].id);
+
+    if (realIndexFrom !== -1 && realIndexTo !== -1) {
+      const [removed] = updatedZones.splice(realIndexFrom, 1);
+      updatedZones.splice(realIndexTo, 0, removed);
+      setZones(updatedZones);
+    }
+    setDraggedIndex(null);
+  };
+
   const filteredZones = filterBranch === 'all'
     ? zones
     : zones.filter((z) => z.branch_id === filterBranch);
@@ -135,7 +174,6 @@ export default function AdminZonesPage() {
     visiblePage * ZONES_PER_PAGE,
   );
 
-  // Reset to page 1 when filter changes
   function handleFilterChange(val: string) {
     setFilterBranch(val);
     setCurrentPage(1);
@@ -145,17 +183,15 @@ export default function AdminZonesPage() {
     <div className="min-h-screen bg-[#e8edf5] py-6 sm:py-8 px-3 sm:px-6 lg:px-8 text-slate-800">
       <div className="max-w-7xl mx-auto space-y-5">
 
-        {/* ── Nav ── */}
         <AdminNav activeHref="/admin/zones" />
 
-        {/* ── Header ── */}
         <div className="relative bg-white border border-blue-100/80 rounded-2xl overflow-hidden shadow-sm p-6">
           <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-[#1a3a6e] via-[#c8a230] to-[#1a3a6e]" />
           <div className="flex items-center gap-3">
             <span className="text-3xl">🗂️</span>
             <div>
               <h1 className="text-xl font-black text-slate-800">จัดการแผนกและโซน</h1>
-              <p className="text-xs text-blue-700 font-bold mt-0.5">จัดการแผนกและโซนของแต่ละแผนกในหน้าเดียว</p>
+              <p className="text-xs text-blue-700 font-bold mt-0.5">คลิกเมาส์ค้างที่แถบโซนแล้วลากเพื่อสลับลำดับได้ตามต้องการ</p>
             </div>
           </div>
         </div>
@@ -182,7 +218,6 @@ export default function AdminZonesPage() {
         <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-5">
           <h2 className="text-sm font-black text-blue-700 uppercase tracking-widest mb-4">➕ เพิ่มโซนใหม่</h2>
           <div className="flex flex-col sm:flex-row gap-3">
-            {/* เลือกแผนก */}
             <div className="sm:w-48 shrink-0">
               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">แผนก</label>
               <div className="relative">
@@ -200,7 +235,6 @@ export default function AdminZonesPage() {
               </div>
             </div>
 
-            {/* ชื่อโซน */}
             <div className="flex-1">
               <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">ชื่อโซน</label>
               <input
@@ -227,10 +261,10 @@ export default function AdminZonesPage() {
 
         {/* ── Zone List ── */}
         <div id="zone-list" className="bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden">
-          {/* filter bar */}
           <div className="p-4 border-b border-blue-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <h2 className="text-sm font-black text-slate-700">
               โซนทั้งหมด <span className="text-blue-500 ml-1">{filteredZones.length}</span>
+              <span className="text-xs text-slate-400 font-normal ml-2">(💡 สามารถคลิกเมาส์ค้างแล้วลากแถวเพื่อสลับลำดับได้)</span>
             </h2>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-400">กรองแผนก:</span>
@@ -260,65 +294,84 @@ export default function AdminZonesPage() {
             </div>
           ) : (
             <div className="divide-y divide-slate-50">
-              {pagedZones.map((zone) => (
-                <div key={zone.id} className="p-4 flex items-center gap-4 hover:bg-blue-50/30 transition-colors group">
-                  <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
-                    <span className="text-base">🗂️</span>
-                  </div>
+              {pagedZones.map((zone, pageIdx) => {
+                const absoluteIdx = (visiblePage - 1) * ZONES_PER_PAGE + pageIdx;
+                const itemIndex = absoluteIdx + 1;
 
-                  {editId === zone.id ? (
-                    <input
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleEdit(zone.id); if (e.key === 'Escape') setEditId(null); }}
-                      autoFocus
-                      className="flex-1 py-1.5 px-3 border border-blue-400 rounded-lg text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-300"
-                    />
-                  ) : (
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-800 text-sm">{zone.name}</p>
-                      <p className="text-xs text-blue-600 font-semibold mt-0.5">
-                        แผนก: {zone.branch?.name || '—'}
-                      </p>
+                return (
+                  <div
+                    key={zone.id}
+                    draggable={editId !== zone.id}
+                    onDragStart={(e) => handleDragStart(e, absoluteIdx)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, absoluteIdx)}
+                    className={`p-4 flex items-center gap-4 transition-all ${
+                      editId !== zone.id ? 'cursor-grab active:cursor-grabbing hover:bg-blue-50/60' : 'bg-blue-50/20'
+                    }`}
+                  >
+                    <div className="text-slate-300 hover:text-slate-500 shrink-0 select-none" title="คลิกค้างเพื่อลากเปลี่ยนลำดับ">
+                      ⠿
                     </div>
-                  )}
 
-                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+                      <span className="text-base">🗂️</span>
+                    </div>
+
                     {editId === zone.id ? (
-                      <>
-                        <button onClick={() => handleEdit(zone.id)} disabled={saving}
-                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-black hover:bg-blue-700 active:scale-95 transition-all">
-                          บันทึก
-                        </button>
-                        <button onClick={() => setEditId(null)}
-                          className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-black hover:bg-slate-200 active:scale-95 transition-all">
-                          ยกเลิก
-                        </button>
-                      </>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleEdit(zone.id); if (e.key === 'Escape') setEditId(null); }}
+                        autoFocus
+                        className="flex-1 py-1.5 px-3 border border-blue-400 rounded-lg text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-300"
+                      />
                     ) : (
-                      <>
-                        <button
-                          onClick={() => { setEditId(zone.id); setEditName(zone.name); }}
-                          className="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-xs font-black hover:bg-blue-100 active:scale-95 transition-all"
-                        >
-                          ✏️ แก้ไข
-                        </button>
-                        <button
-                          onClick={() => handleDelete(zone.id, zone.name)}
-                          className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-100 rounded-lg text-xs font-black hover:bg-red-100 active:scale-95 transition-all"
-                        >
-                          🗑️ ลบ
-                        </button>
-                      </>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-slate-800 text-sm">
+                          {itemIndex}. {zone.name}
+                        </p>
+                        <p className="text-xs text-blue-600 font-semibold mt-0.5">
+                          แผนก: {zone.branch?.name || '—'}
+                        </p>
+                      </div>
                     )}
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {editId === zone.id ? (
+                        <>
+                          <button onClick={() => handleEdit(zone.id)} disabled={saving}
+                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-black hover:bg-blue-700 active:scale-95 transition-all">
+                            บันทึก
+                          </button>
+                          <button onClick={() => setEditId(null)}
+                            className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-black hover:bg-slate-200 active:scale-95 transition-all">
+                            ยกเลิก
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => { setEditId(zone.id); setEditName(zone.name); }}
+                            className="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-xs font-black hover:bg-blue-100 active:scale-95 transition-all"
+                          >
+                            ✏️ แก้ไข
+                          </button>
+                          <button
+                            onClick={() => handleDelete(zone.id, zone.name)}
+                            className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-100 rounded-lg text-xs font-black hover:bg-red-100 active:scale-95 transition-all"
+                          >
+                            🗑️ ลบ
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
-          {/* ── Pagination ── */}
           {totalPages > 1 && (
             <div className="px-5 py-4 bg-white border-t border-blue-100 flex items-center justify-between">
               <span className="text-xs font-bold text-slate-500">
