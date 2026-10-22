@@ -27,6 +27,7 @@ interface CartFormContentProps {
   zoneName: string;
   setZoneName: (val: string) => void;
   zones: Zone[];
+  senderName:string; setSenderName:(val:string)=>void;
   requesterName: string;
   setRequesterName: (val: string) => void;
   handlePreSubmitCheck: (e: React.FormEvent) => void;
@@ -38,7 +39,7 @@ interface CartFormContentProps {
   cartBounce: boolean;
 }
 
-const SORTING_BRANCH = 'จัดเรียง';
+
 
 const CartFormContent = ({
   branchName,
@@ -48,7 +49,7 @@ const CartFormContent = ({
   setZoneName,
   zones,
   requesterName,
-  setRequesterName,
+  setRequesterName, senderName, setSenderName,
   handlePreSubmitCheck,
   totalCartItems,
   cart,
@@ -80,7 +81,7 @@ const CartFormContent = ({
       </div>
 
       {/* โซน — โชว์เฉพาะแผนกจัดเรียง */}
-      {branchName === SORTING_BRANCH && (
+      {zones.length > 0 && (
         <div>
           <label className="block text-[10px] font-black text-blue-700 uppercase tracking-[0.15em] mb-1.5">
             🗂️ โซน
@@ -101,6 +102,7 @@ const CartFormContent = ({
         </div>
       )}
 
+      {(zones.length>0||branchName==='จัดเรียง')&&<label className="block text-xs font-bold text-blue-800">หัวหน้า / รองหัวหน้าผู้ส่งใบเบิก *<input required maxLength={200} value={senderName} onChange={e=>setSenderName(e.target.value)} placeholder="ชื่อ - นามสกุลผู้ส่งใบเบิก" className="mt-2 w-full rounded-xl border border-blue-200 p-3 text-sm"/></label>}
       {/* ชื่อผู้เบิก */}
       <div>
         <label className="block text-[10px] font-black text-blue-700 uppercase tracking-[0.15em] mb-1.5">
@@ -201,11 +203,14 @@ function buildPageNumbers(current: number, total: number): (number | '…')[] {
 export default function RequisitionPage() {
   const [items, setItems]               = useState<Item[]>([]);
   const [branches, setBranches]         = useState<{ id: string; name: string }[]>([]);
-  const [zones, setZones]               = useState<Zone[]>([]);
+  const [allZones,setAllZones]=useState<(Zone&{branch_id:string})[]>([]);
+  const [zonesReady,setZonesReady]=useState(false);
+  const [senderName,setSenderName]=useState('');
   const [searchTerm, setSearchTerm]     = useState('');
   const [requesterName, setRequesterName] = useState('');
   const [branchName, setBranchName]     = useState('');
   const [zoneName, setZoneName]         = useState('');
+  const zones=allZones.filter(zone=>zone.branch_id===branches.find(branch=>branch.name===branchName)?.id);
   const [cart, setCart]                 = useState<CartItem[]>([]);
   const [loading, setLoading]           = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -216,13 +221,15 @@ export default function RequisitionPage() {
 
   useEffect(() => {
     async function fetchData() {
-      const [{ data: itemsData, error: itemsError }, { data: branchesData }] = await Promise.all([
+      const [{ data: itemsData, error: itemsError }, { data: branchesData }, {data:zonesData,error:zonesError}] = await Promise.all([
         supabase.from('items').select('id, name, unit, image_url, stock_quantity').eq('is_active', true).order('name'),
         supabase.from('branches').select('id, name').order('name'),
+        supabase.from('zones').select('id,name,branch_id').order('name'),
       ]);
       if (itemsError) alert('โหลดจำนวนสินค้าไม่สำเร็จ กรุณาตรวจสอบว่าเพิ่มคอลัมน์จำนวนคงเหลือในฐานข้อมูลแล้ว');
       if (itemsData)    setItems(itemsData);
       if (branchesData) setBranches(branchesData);
+      if(zonesError)alert('โหลดโซนไม่สำเร็จ กรุณารีเฟรชก่อนส่งใบเบิก');else {setAllZones(zonesData||[]);setZonesReady(true);}
     }
     fetchData();
     const refreshStock = async () => {
@@ -234,21 +241,6 @@ export default function RequisitionPage() {
     window.addEventListener('focus', refreshStock);
     return () => { clearInterval(timer); window.removeEventListener('focus', refreshStock); };
   }, []);
-
-  // โหลดโซนเมื่อเลือกแผนกจัดเรียง
-  useEffect(() => {
-    async function fetchZones() {
-      const branch = branches.find((b) => b.name === branchName);
-      if (!branch || branchName !== 'จัดเรียง') { setZones([]); return; }
-      const { data } = await supabase
-        .from('zones')
-        .select('id, name')
-        .eq('branch_id', branch.id)
-        .order('name');
-      if (data) setZones(data);
-    }
-    fetchZones();
-  }, [branchName, branches]);
 
   const filteredItems = items.filter((item) =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -300,7 +292,9 @@ export default function RequisitionPage() {
   const handlePreSubmitCheck = (e: React.FormEvent) => {
     e.preventDefault();
     if (!branchName.trim())   { alert('กรุณาเลือกแผนก'); return; }
-    if (branchName === 'จัดเรียง' && !zoneName.trim()) { alert('กรุณาเลือกโซน'); return; }
+    if(!zonesReady){alert('กรุณารอโหลดข้อมูลโซนหรือรีเฟรชหน้า');return;}
+    if((zones.length>0||branchName==='จัดเรียง')&&!senderName.trim()){alert('กรุณากรอกชื่อหัวหน้า / รองหัวหน้าผู้ส่งใบเบิก');return;}
+    if (zones.length>0 && !zones.some(zone=>zone.name===zoneName)) { alert('กรุณาเลือกโซน'); return; }
     if (!requesterName.trim()) { alert('กรุณากรอกชื่อผู้เบิก'); return; }
     if (cart.length === 0)    { alert('กรุณาเลือกสินค้าอย่างน้อย 1 รายการ'); return; }
     if (cart.some((item) => warnStock(items.find((latest) => latest.id === item.id) ?? item, item.quantity))) return;
@@ -335,7 +329,8 @@ export default function RequisitionPage() {
       .from('requisitions')
       .insert([{
         branch_name: branchName.trim(),
-        zone_name: zoneName.trim() || null,
+        zone_name: zones.length>0 ? zoneName.trim() : null,
+        ...((zones.length>0||branchName==='จัดเรียง')?{sender_name:senderName.trim()}:{}),
         requester_name: requesterName.trim(),
         status: 'pending',
         total_price: 0,
@@ -366,7 +361,7 @@ export default function RequisitionPage() {
       alert('ส่งคำขอเบิกสินค้าเรียบร้อยแล้ว!');
       setCart([]);
       setSearchTerm('');
-      setRequesterName('');
+      setRequesterName('');setSenderName('');
       setBranchName('');
       setZoneName('');
       setCurrentPage(1);
@@ -374,7 +369,8 @@ export default function RequisitionPage() {
   };
 
   const cartFormProps = {
-    branchName, setBranchName,
+    branchName, setBranchName:(value:string)=>{setBranchName(value);setZoneName('');setSenderName('');},
+    senderName,setSenderName,
     branches,
     zoneName, setZoneName,
     zones,
@@ -667,7 +663,7 @@ export default function RequisitionPage() {
                 )}
                 <div className={`bg-blue-50 p-3.5 rounded-xl border border-blue-100 ${!zoneName ? 'col-span-1' : ''}`}>
                   <span className="block text-[10px] font-black text-blue-700 uppercase tracking-wider">ผู้เบิก</span>
-                  <span className="font-black text-slate-800 text-sm mt-1 block">{requesterName}</span>
+                  <span className="font-black text-slate-800 text-sm mt-1 block">{requesterName}</span>{(zones.length>0||branchName==='จัดเรียง')&&<p className="mt-1 text-xs text-blue-900">ผู้ส่งใบเบิก: {senderName}</p>}
                 </div>
               </div>
 

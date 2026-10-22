@@ -20,6 +20,7 @@ interface ReportItemSummary {
   totalQuantity: number;
   totalCost: number;
   branch_name: string;
+  zone_name?:string;
 }
 
 interface BranchSummary {
@@ -115,7 +116,7 @@ const ReportPDF = ({
             ? data.itemsList.map((item: any, index: number) => (
                 <View key={index} style={styles.row} wrap={false}>
                   <Text style={[styles.cell, { width: '10%', textAlign: 'center' }]}>{index + 1}</Text>
-                  <Text style={[styles.cell, { width: '15%' }]}>{item.branch_name}</Text>
+                  <Text style={[styles.cell, { width: '15%' }]}>{item.branch_name}{item.zone_name?' / '+item.zone_name:''}</Text>
                   <Text style={[styles.cell, { width: '35%' }]}>{item.name}</Text>
                   <Text style={[styles.cell, { width: '10%', textAlign: 'center' }]}>{item.totalQuantity}</Text>
                   <Text style={[styles.cell, { width: '15%', textAlign: 'center' }]}>{item.unit}</Text>
@@ -348,11 +349,11 @@ export default function AdminReportsPage() {
   const getFilteredData = () => {
     const filteredReqs = rawRequisitions.filter((r) => {
       if (!r.created_at) return false;
-      const rDate = new Date(r.created_at).toISOString().split('T')[0];
+      const rDate = new Date(r.created_at).toLocaleDateString('sv-SE',{timeZone:'Asia/Bangkok'});
       if (dateFrom && rDate < dateFrom) return false;
       if (dateTo   && rDate > dateTo)   return false;
-      if (selectedReportType === 'items' && selectedBranch !== 'all' && r.branch_name !== selectedBranch) return false;
-      if (selectedReportType === 'items' && selectedZone !== 'all' && r.zone_name !== selectedZone) return false;
+      if (selectedBranch !== 'all' && r.branch_name !== selectedBranch) return false;
+      if (selectedZone !== 'all' && r.zone_name !== selectedZone) return false;
       return true;
     });
 
@@ -362,7 +363,7 @@ export default function AdminReportsPage() {
     const branchMap: Record<string, { totalOrders: number; totalBudget: number; items: Record<string, ReportItemSummary> }> = {};
 
     allBranches.forEach((b) => { branchMap[b] = { totalOrders: 0, totalBudget: 0, items: {} }; });
-    filteredReqs.forEach((r) => { if (branchMap[r.branch_name]) branchMap[r.branch_name].totalOrders++; });
+    filteredReqs.forEach((r) => { const label=r.branch_name+(r.zone_name?' · โซน '+r.zone_name:'');if(!branchMap[label])branchMap[label]={totalOrders:0,totalBudget:0,items:{}};branchMap[label].totalOrders++; });
 
     rawDetails.forEach((det: any) => {
       if (!filteredReqIds.has(det.requisition_id)) return;
@@ -380,21 +381,23 @@ export default function AdminReportsPage() {
 
           totalBudgetCounter += cost;
 
-        const key = `${branchName}_${itemName}`;
+        const zoneName=parentReq.zone_name||'';
+        const key = JSON.stringify([branchName,zoneName,itemName,itemUnit]);
         if (!globalItemsMap[key]) {
-          globalItemsMap[key] = { name: itemName, unit: itemUnit, totalQuantity: 0, totalCost: 0, branch_name: branchName };
+          globalItemsMap[key] = { name: itemName, unit: itemUnit, totalQuantity: 0, totalCost: 0, branch_name: branchName, zone_name:parentReq.zone_name||'' };
         }
         globalItemsMap[key].totalQuantity += qty;
         globalItemsMap[key].totalCost     += cost;
       }
 
-      if (branchMap[branchName]) {
-        branchMap[branchName].totalBudget += cost;
-        if (!branchMap[branchName].items[itemName]) {
-          branchMap[branchName].items[itemName] = { name: itemName, unit: itemUnit, totalQuantity: 0, totalCost: 0, branch_name: branchName };
+      const summaryKey=branchName+(parentReq.zone_name?' · โซน '+parentReq.zone_name:'');
+      if (branchMap[summaryKey]) {
+        branchMap[summaryKey].totalBudget += cost;
+        if (!branchMap[summaryKey].items[itemName]) {
+          branchMap[summaryKey].items[itemName] = { name: itemName, unit: itemUnit, totalQuantity: 0, totalCost: 0, branch_name: branchName };
         }
-        branchMap[branchName].items[itemName].totalQuantity += qty;
-        branchMap[branchName].items[itemName].totalCost     += cost;
+        branchMap[summaryKey].items[itemName].totalQuantity += qty;
+        branchMap[summaryKey].items[itemName].totalCost     += cost;
       }
     });
 
@@ -452,7 +455,7 @@ export default function AdminReportsPage() {
     const worksheet = workbook.addWorksheet(sheetName);
 
     // ── Title block ──────────────────────────────────────────────────────────
-    const totalCols = selectedReportType === 'items' ? 7 : 3;
+    const totalCols = selectedReportType === 'items' ? 8 : 3;
     const lastCol   = String.fromCharCode(64 + totalCols); // e.g. 'G' or 'C'
 
     worksheet.mergeCells(`A1:${lastCol}1`);
@@ -486,7 +489,7 @@ export default function AdminReportsPage() {
         rawRequisitions
           .filter((r) => {
             if (!r.created_at) return false;
-            const rDate = new Date(r.created_at).toISOString().split('T')[0];
+            const rDate = new Date(r.created_at).toLocaleDateString('sv-SE',{timeZone:'Asia/Bangkok'});
             if (dateFrom && rDate < dateFrom) return false;
             if (dateTo   && rDate > dateTo)   return false;
             return true;
@@ -526,11 +529,11 @@ export default function AdminReportsPage() {
 
       // ── Summary row ──────────────────────────────────────────────────────
       worksheet.addRow([]);
-      const sumRow = worksheet.addRow(['', '', '', '', '', 'รวมสุทธิ', grandTotal]);
+      const sumRow = worksheet.addRow(['', '', '', '', '', '', 'รวมสุทธิ', grandTotal]);
       sumRow.font = { bold: true, size: 12 };
-      sumRow.getCell(6).alignment = { horizontal: 'right' };
-      sumRow.getCell(7).numFmt    = '#,##0.00';
-      sumRow.getCell(7).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF275fb9' } };
+      sumRow.getCell(7).alignment = { horizontal: 'right' };
+      sumRow.getCell(8).numFmt    = '#,##0.00';
+      sumRow.getCell(8).fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF275fb9' } };
 
       // ── Column widths ─────────────────────────────────────────────────────
       worksheet.columns = [
@@ -706,7 +709,7 @@ export default function AdminReportsPage() {
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 sm:col-span-2"><p className="text-xs font-bold text-slate-600">พบ {currentData.totalOrders.toLocaleString('th-TH')} ใบเบิก · {currentData.itemsList.length.toLocaleString('th-TH')} รายการสินค้า · {currentData.branchSummaries.length.toLocaleString('th-TH')} แผนก</p><button type="button" onClick={()=>{setSelectedBranch('all');setSelectedZone('all');setDateFrom('');setDateTo('');resetPages();}} className="text-xs font-black text-blue-700 hover:underline">ล้างตัวกรองทั้งหมด</button></div>
             {/* โซน — โชว์เฉพาะเมื่อเลือกแผนกจัดเรียง */}
-            {selectedBranch === 'จัดเรียง' && (
+            {allZones.some(zone=>selectedBranch==='all'||zone.branch_id===branchIdMap[selectedBranch]) && (
               <div className="space-y-2">
                 <label className="text-xs font-black text-blue-700 uppercase tracking-widest">🗂️ โซน</label>
                 <select
@@ -716,7 +719,7 @@ export default function AdminReportsPage() {
                 >
                   <option value="all">ทุกโซน</option>
                   {allZones
-                    .filter((z) => z.branch_id === branchIdMap[selectedBranch])
+                    .filter((z) => selectedBranch==='all'||z.branch_id === branchIdMap[selectedBranch])
                     .map((z) => <option key={z.id} value={z.name}>{z.name}</option>)}
                 </select>
               </div>
@@ -898,11 +901,11 @@ export default function AdminReportsPage() {
                         // Keep global index for display (not reset per page)
                         const globalIdx = (itemsPage - 1) * PAGE_SIZE + idx;
                         return (
-                          <tr key={`${item.branch_name}-${item.name}`} className={`hover:bg-blue-50/40 transition-colors ${idx % 2 === 1 ? 'bg-blue-50/20' : ''}`}>
+                          <tr key={JSON.stringify([item.branch_name,item.zone_name,item.name,item.unit])} className={`hover:bg-blue-50/40 transition-colors ${idx % 2 === 1 ? 'bg-blue-50/20' : ''}`}>
                             <td className="p-3 border border-blue-100/60 text-center text-blue-400 font-bold">{globalIdx + 1}</td>
                             <td className="p-3 border border-blue-100/60 font-bold">
                               <div>{item.name}</div>
-                              <div className="text-xs text-blue-700 font-semibold mt-0.5">{item.branch_name}</div>
+                              <div className="text-xs text-blue-700 font-semibold mt-0.5">{item.branch_name}{item.zone_name?' · โซน '+item.zone_name:''}</div>
                             </td>
                             <td className="p-3 border border-blue-100/60 text-center font-bold">
                               <span className="bg-blue-50 text-blue-900 px-2.5 py-1 rounded-lg border border-blue-100">

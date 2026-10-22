@@ -10,6 +10,7 @@ interface Requisition {
   created_at: string;
   branch_name: string;
   requester_name: string;
+  zone_name?:string;sender_name?:string;
   status: 'pending' | 'approved' | 'rejected';
 }
 
@@ -53,6 +54,10 @@ export default function AdminRequisitionsPage() {
   const [approvedCount, setApprovedCount] = useState(0);
   const [rejectedCount, setRejectedCount] = useState(0);
 
+  const [zoneBranches,setZoneBranches]=useState<string[]>([]);
+  useEffect(()=>{let alive=true;void Promise.all([supabase.from('branches').select('id,name'),supabase.from('zones').select('branch_id')]).then(([branches,zones])=>{if(!alive||branches.error||zones.error)return;const ids=new Set((zones.data||[]).map(zone=>zone.branch_id));setZoneBranches((branches.data||[]).filter(branch=>ids.has(branch.id)).map(branch=>branch.name));});return()=>{alive=false;};},[]);
+  const needsSender=(req:Requisition)=>req.branch_name==='จัดเรียง'||Boolean(req.zone_name)||zoneBranches.includes(req.branch_name)||Boolean(req.sender_name);
+
   // จุดแดงแจ้งเตือนใบเบิกใหม่
   const { newCount, markSeen } = useNewRequisitions();
   const [newSince, setNewSince] = useState<string | null>(null);
@@ -82,7 +87,7 @@ export default function AdminRequisitionsPage() {
 
     let query = supabase
       .from('requisitions')
-      .select('id, created_at, branch_name, requester_name, status', { count: 'exact' })
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(from, to);
 
@@ -323,20 +328,22 @@ export default function AdminRequisitionsPage() {
                   <span className="ml-auto text-xs font-bold text-blue-400">{reqs.length} รายการ</span>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
+                  <table className="w-full min-w-[800px] table-fixed text-left text-sm">
+                    <colgroup><col className="w-20"/><col className="w-[28%]"/><col/><col className="w-44"/><col className="w-40"/></colgroup>
+                    <thead className="border-b border-blue-50 bg-slate-50/60 text-xs font-bold text-slate-400"><tr><th scope="col" className="px-4 py-2">เวลา</th><th scope="col" className="px-4 py-2">แผนก / โซน</th><th scope="col" className="px-4 py-2">ผู้เบิก / ผู้ส่ง</th><th scope="col" className="px-4 py-2">สถานะ</th><th scope="col" className="px-4 py-2 text-right">ดำเนินการ</th></tr></thead>
                     <tbody className="divide-y divide-blue-50/80">
                       {reqs.map((req) => (
-                        <tr key={req.id} className="hover:bg-blue-50/40 transition-colors group">
-                          <td className="p-4 text-sm font-semibold text-slate-400 w-24">
+                        <tr key={req.id} className="align-middle hover:bg-blue-50/40 transition-colors group">
+                          <td className="p-4 text-sm font-semibold text-slate-400 whitespace-nowrap">
                             {new Date(req.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                           </td>
                           <td className="p-4">
-                            <span className="font-black text-slate-800">{req.branch_name}</span>
+                            <span className="font-black text-slate-800">{req.branch_name}</span>{req.zone_name&&<p className="mt-1 text-xs font-bold text-blue-700">โซน: {req.zone_name}</p>}
                           </td>
                           <td className="p-4">
-                            <span className="text-sm font-semibold text-slate-500">{req.requester_name}</span>
+                            <span className="text-sm font-semibold text-slate-500">{req.requester_name}</span>{needsSender(req)&&<p className={'mt-1 text-xs font-semibold '+(req.sender_name?'text-blue-800':'text-amber-700')}>หัวหน้า/รองหัวหน้าผู้ส่ง: {req.sender_name?.trim()||'ยังไม่ระบุ'}</p>}
                           </td>
-                                                    <td className="p-4">
+                          <td className="p-4">
                             <div className="flex items-center gap-2 flex-wrap">
                               {getStatusBadge(req.status)}
                               {newSince !== null && Date.parse(req.created_at) > Date.parse(newSince) && !openedIds.has(req.id) && (
@@ -347,7 +354,7 @@ export default function AdminRequisitionsPage() {
                               )}
                             </div>
                           </td>
-                          <td className="p-4 text-right">
+                          <td className="p-4 text-right whitespace-nowrap">
                             {req.status === 'pending' ? (
                               <button
                                 onClick={() => handleViewDetails(req, 'review')}
@@ -481,7 +488,7 @@ export default function AdminRequisitionsPage() {
                     </div>
                     <div>
                       <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">แผนก</p>
-                      <p className="font-bold text-slate-700 mt-1">{selectedReq.branch_name}</p>
+                      <p className="font-bold text-slate-700 mt-1">{selectedReq.branch_name}</p>{selectedReq.zone_name&&<p className="mt-1">โซน: {selectedReq.zone_name}</p>}{needsSender(selectedReq)&&<p className={'mt-2 rounded-lg border p-2 text-sm '+(selectedReq.sender_name?'border-blue-100 text-blue-900':'border-amber-200 bg-amber-50 text-amber-800')}>หัวหน้า / รองหัวหน้าผู้ส่ง: <strong>{selectedReq.sender_name?.trim()||'ยังไม่ระบุ'}</strong></p>}
                     </div>
                     <div>
                       <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">วันที่</p>

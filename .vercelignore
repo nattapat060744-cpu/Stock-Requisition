@@ -1,0 +1,6 @@
+.env*
+tmp/
+output/
+tests/
+supabase/
+*.tsbuildinfo

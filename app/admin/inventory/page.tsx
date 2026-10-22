@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import {exportReportExcel} from '@/lib/reportExports';
 import AdminNav from '@/components/AdminNav';
 
 interface InventoryItem {
@@ -17,6 +18,7 @@ interface InventoryItem {
 
 export default function AdminInventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [exporting,setExporting]=useState(false);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
@@ -42,7 +44,7 @@ export default function AdminInventoryPage() {
 
   async function fetchInventory() {
     setLoading(true);
-    const { data, error } = await supabase.from('items').select('*').order('name');
+    const all:InventoryItem[]=[];let error=null;for(let offset=0;;offset+=500){const result=await supabase.from('items').select('*').order('name').order('id').range(offset,offset+499);if(result.error){error=result.error;break;}all.push(...(result.data||[]));if(!result.data||result.data.length<500)break;}const data=error?null:all;
     if (data) setItems(data);
     if (error) console.error(error);
     setLoading(false);
@@ -157,31 +159,24 @@ export default function AdminInventoryPage() {
 
         <AdminNav activeHref="/admin/inventory" />
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-5 rounded-2xl shadow-sm shadow-blue-100/50 border border-blue-100 gap-4">
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-black text-slate-800 tracking-tight">📦 คลังสินค้า</h1>
-            <p className="text-xs font-semibold text-blue-700 mt-1 uppercase tracking-widest">จัดการรายการสินค้าและจำนวนคงเหลือ</p>
-          </div>
-          <div className="flex gap-2 shrink-0">
-          <p className="text-xs text-left font-semibold text-blue-700 mt-1 uppercase tracking-widest">ค้นหารายชื่อสินค้า <br />
-            <input
-              type="text"
-              placeholder="🔍 ค้นหาชื่อสินค้าหรือรหัส..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="mt-3 text-sm border border-blue-100 bg-blue-50 px-4 py-2.5 rounded-xl w-full sm:w-72 outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all font-medium text-slate-700 placeholder:text-slate-400"
-            /></p>
-<button
+        <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm shadow-blue-100/50">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div><h1 className="text-xl font-black tracking-tight text-slate-800">📦 คลังสินค้า</h1><p className="mt-1 text-xs font-semibold text-blue-700">จัดการรายการสินค้าและจำนวนคงเหลือ</p></div>
+            <button
               onClick={() => {
                 setEditingItem({ id: '', product_code: '', name: '', unit: '', price: 0, stock_quantity: null, is_active: true, image_url: '' });
                 setFormData({ product_code: '', name: '', unit: '', price: 0, stock_quantity: null, is_active: true, image_url: '' });
               }}
-              className="inline-flex items-center gap-2 bg-linear-to-r from-blue-700 to-blue-800 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:from-blue-800 hover:to-blue-900 shadow-md shadow-blue-200/50 transition-all active:scale-95"
+              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap bg-linear-to-r from-blue-700 to-blue-800 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:from-blue-800 hover:to-blue-900 shadow-md shadow-blue-200/50 transition-all active:scale-95"
             >
               + เพิ่มสินค้า
             </button>
           </div>
-        </div>
+          <div className="mt-4 flex flex-col gap-3 border-t border-blue-50 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <input type="search" aria-label="ค้นหาชื่อสินค้าหรือรหัส" placeholder="🔍 ค้นหาชื่อสินค้าหรือรหัส..." value={searchTerm} onChange={e=>{setSearchTerm(e.target.value);setCurrentPage(1);}} className="h-11 w-full rounded-xl border border-blue-100 bg-blue-50/50 px-4 text-sm font-medium text-slate-700 outline-none placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-300 sm:max-w-sm"/>
+            <div className="flex flex-wrap items-center gap-2"><a href="/admin/stocktake" className="inline-flex h-11 items-center justify-center whitespace-nowrap rounded-xl border border-blue-200 bg-white px-4 text-sm font-bold text-blue-900 hover:bg-blue-50">ตรวจนับคลัง / ประวัติ</a><button disabled={loading||exporting} onClick={async()=>{setExporting(true);try{await exportReportExcel('รายการสินค้าในคลัง',['รหัสสินค้า','ชื่อสินค้า','หน่วย','มูลค่าต่อหน่วย','คงเหลือ'],filteredItems.map(item=>[item.product_code||'',item.name,item.unit,item.price,item.stock_quantity??'ยังไม่ระบุ']),'Sampeng-inventory.xlsx','คำค้น: '+(searchTerm||'ทั้งหมด')+' · '+filteredItems.length+' รายการ');}catch(e){alert(e instanceof Error?e.message:'Export ไม่สำเร็จ');}finally{setExporting(false);}}} className="inline-flex h-11 items-center justify-center whitespace-nowrap rounded-xl border border-blue-200 bg-white px-4 text-sm font-bold text-blue-900 hover:bg-blue-50 disabled:opacity-40">{exporting?'กำลังส่งออก...':'Export Excel'}</button></div>
+          </div>
+        </section>
 
         <div className="bg-white rounded-2xl shadow-sm shadow-blue-100/50 border border-blue-100 overflow-hidden">
           <div className="overflow-x-auto">
