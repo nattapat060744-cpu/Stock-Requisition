@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import ReportHeading, {REPORT_PANEL} from '@/components/ReportHeading';
 import { supabase } from '@/lib/supabase';
 import ExcelJS from 'exceljs';
 import {
@@ -642,13 +643,8 @@ export default function AdminReportsPage() {
         
 
         {/* ── Filter Panel ── */}
-        <div className="bg-white p-5 rounded-2xl shadow-sm shadow-blue-100/50 border border-blue-100 space-y-5 print:hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-blue-50 pb-4">
-            <div>
-              <h1 className="text-xl font-black text-slate-800 tracking-tight">📈 รายงานการเบิก</h1>
-              <p className="text-xs font-semibold text-slate-400 mt-1">เลือกประเภทรายงาน ช่วงวันที่ และแผนก</p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
+        <div className={REPORT_PANEL}>
+          <ReportHeading title="📝 รายงานการเบิก" description="สรุปยอดตามแผนก โซน และช่วงวันที่" actions={<>
               <PDFDownloadLink
                 document={<ReportPDF data={currentData} title={getReportHeaderTitle()} type={selectedReportType} dateFrom={dateFrom} dateTo={dateTo} />}
                 fileName={`Report_${selectedReportType}_${selectedBranch}${dateFrom ? `_${dateFrom}` : ''}_to_${dateTo || 'now'}.pdf`}
@@ -681,8 +677,7 @@ export default function AdminReportsPage() {
               >
                 <span>🖨️</span><span>พิมพ์</span>
               </button>
-            </div>
-          </div>
+          </>} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -733,7 +728,7 @@ export default function AdminReportsPage() {
                 <button onClick={() => applyPreset('all')} className="text-xs text-red-500 font-bold hover:underline">✕ ล้างช่วงวันที่</button>
               )}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div data-report-presets className="flex flex-wrap gap-2">
               {PRESETS.map((p) => (
                 <button
                   key={p.key}

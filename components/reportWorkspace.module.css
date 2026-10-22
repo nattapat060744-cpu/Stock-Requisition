@@ -1,0 +1,11 @@
+.workspace { min-width: 0; }
+@media screen {
+ .workspace :where(input:not([type=checkbox]):not([type=radio]):not([type=file]), select) { min-height: 40px; border-radius: 12px; font-size: 13px; }
+ .workspace :where(label) { font-size: 12px; }
+ .workspace [data-report-heading] :where(button,a) { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; white-space: nowrap; border-radius: 12px; font-size: 13px; }
+ .workspace [data-report-heading] a > div { min-height: 40px; display: inline-flex; align-items: center; }
+ .workspace [data-report-presets] button { min-height: 32px; border-radius: 999px; font-size: 12px; padding: 5px 14px; }
+ .workspace :where(table) { font-size: 13px; }
+ .workspace :where(thead) { background-color: #eff6ff; color: #1a3a6e; }
+ .workspace :where(th) { font-size: 12px; }
+}
