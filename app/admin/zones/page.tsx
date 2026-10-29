@@ -15,17 +15,20 @@ interface Zone {
   id: string;
   name: string;
   branch_id: string;
+  sort_order: number | null;
   branch?: { name: string };
 }
 
 async function readManagementData() {
  const [zoneResult, branchResult] = await Promise.all([
-  supabase.from('zones').select('id, name, branch_id').order('name'),
-  supabase.from('branches').select('id, name').order('name'),
+  supabase.from('zones').select('id, name, branch_id, sort_order').order('sort_order', { ascending: true, nullsFirst: false }).order('name'),
+  supabase.from('branches').select('id, name').eq('is_active', true).order('name'),
  ]);
  if (zoneResult.error) throw zoneResult.error;
  if (branchResult.error) throw branchResult.error;
- return { zones: zoneResult.data ?? [], branches: branchResult.data ?? [] };
+ const branches = branchResult.data ?? [];
+ const activeIds = new Set(branches.map((branch) => branch.id));
+ return { zones: (zoneResult.data ?? []).filter((zone) => activeIds.has(zone.branch_id)), branches };
 }
 
 export default function AdminZonesPage() {
@@ -36,6 +39,7 @@ export default function AdminZonesPage() {
   const [branchName, setBranchName] = useState('');
   const [savingBranch, setSavingBranch] = useState(false);
   const branchBusy = useRef(false);
+  const orderBusy = useRef(false);
   const [loadError, setLoadError] = useState('');
   const [codeBranch,setCodeBranch]=useState<Branch|null>(null);
   const [codeMessage,setCodeMessage]=useState('');
@@ -112,26 +116,11 @@ export default function AdminZonesPage() {
     if (adminKey.length < 12) { alert('กรุณากรอกรหัสสต็อกหรือแอดมินกลางให้ครบ'); return; }
     branchBusy.current = true; setSavingBranch(true);
     try {
-      const created = await supabase.from('branches').insert({ name }).select('id').single();
-      if (created.error || !created.data) { alert('เพิ่มแผนกไม่สำเร็จ: ' + (created.error?.message ?? 'ไม่ทราบสาเหตุ')); return; }
-      const branchId = created.data.id as string;
-
-      const coded = await supabase.rpc('admin_set_department_code', { p_admin_key: adminKey, p_branch_id: branchId, p_code: code });
-      if (coded.error) {
-        // ตั้งรหัสไม่สำเร็จ → ลบแผนกที่เพิ่งสร้าง เพื่อไม่ให้มีแผนกที่ไม่มีรหัสค้างอยู่
-        const rollback = await supabase.from('branches').delete().eq('id', branchId);
-        const message = requestError(coded.error);
-        const reason = /duplicate key|unique constraint/i.test(message) ? 'รหัสนี้ถูกใช้กับแผนกอื่นแล้ว กรุณาใช้รหัสใหม่' : message;
-        if (rollback.error) {
-          alert('สร้างแผนกแล้วแต่ตั้งรหัสไม่สำเร็จ: ' + reason + '\nกรุณาตั้งรหัสอีกครั้งในหน้าต่างที่เปิดขึ้น');
-          setBranchName(''); setBranchCode(''); setBranchCodeConfirm(''); setBranchAdminKey(''); setShowBranchCode(false);
-          setShowAddBranch(false);
-          await loadData();
-          setCodeMessage('');
-          setCodeBranch({ id: branchId, name });
-        } else {
-          alert('ตั้งรหัสไม่สำเร็จ จึงยังไม่ได้สร้างแผนก: ' + reason);
-        }
+      const created = await supabase.rpc('admin_create_department', { p_admin_key: adminKey, p_name: name, p_code: code });
+      if (created.error) {
+        const message = requestError(created.error);
+        const reason = /duplicate key|unique constraint/i.test(message) ? 'ชื่อแผนกหรือรหัสนี้ถูกใช้แล้ว กรุณาตรวจสอบอีกครั้ง' : message;
+        alert('เพิ่มแผนกไม่สำเร็จ (ยังไม่ได้สร้างแผนก): ' + reason);
         return;
       }
 
@@ -142,16 +131,13 @@ export default function AdminZonesPage() {
     } finally { branchBusy.current = false; setSavingBranch(false); }
   }
 
-  async function removeBranch(branch: Branch) {
+  async function deactivateBranch(branch: Branch) {
     if (branchBusy.current) return;
-    if (!window.confirm('ยืนยันลบแผนก “' + branch.name + '”?')) return;
+    if (!window.confirm('ปิดใช้งานแผนก “' + branch.name + '”?\nแผนกจะหายจากรายการนี้ แต่ประวัติและรายงานย้อนหลังยังอยู่')) return;
     branchBusy.current = true; setSavingBranch(true);
     try {
-      const linked = await supabase.from('zones').select('id', { count: 'exact', head: true }).eq('branch_id', branch.id);
-      if (linked.error) { alert('ตรวจสอบโซนไม่สำเร็จ กรุณาลองใหม่'); return; }
-      if ((linked.count ?? 0) > 0) { alert('แผนกนี้ยังมีโซน กรุณาจัดการโซนของแผนกก่อนลบ'); return; }
-      const { error } = await supabase.from('branches').delete().eq('id', branch.id);
-      if (error) { alert('ลบแผนกไม่สำเร็จ: ' + error.message); return; }
+      const { error } = await supabase.from('branches').update({ is_active: false, deactivated_at: new Date().toISOString() }).eq('id', branch.id);
+      if (error) { alert('ปิดใช้งานแผนกไม่สำเร็จ: ' + error.message); return; }
       await loadData();
     } finally { branchBusy.current = false; setSavingBranch(false); }
   }
@@ -160,7 +146,8 @@ export default function AdminZonesPage() {
     if (!newName.trim()) { alert('กรุณากรอกชื่อโซน'); return; }
     if (!newBranchId)    { alert('กรุณาเลือกแผนก'); return; }
     setSaving(true);
-    const { error } = await supabase.from('zones').insert([{ name: newName.trim(), branch_id: newBranchId }]);
+    const nextOrder = Math.max(0, ...zones.map((zone) => zone.sort_order ?? 0)) + 1;
+    const { error } = await supabase.from('zones').insert([{ name: newName.trim(), branch_id: newBranchId, sort_order: nextOrder }]);
     setSaving(false);
     if (error) { alert('เกิดข้อผิดพลาด: ' + error.message); return; }
     setNewName('');
@@ -184,7 +171,7 @@ export default function AdminZonesPage() {
     loadData();
   }
 
-  // ── ฟังก์ชันลากวาง (Drag and Drop สลับตำแหน่งบนหน้าจอ) ──
+  // ── ลากวางเพื่อเรียงลำดับ (บันทึกลงฐานข้อมูลผ่าน reorder_zones) ──
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
@@ -195,25 +182,32 @@ export default function AdminZonesPage() {
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+  const handleDrop = async (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
-    if (draggedIndex === null || draggedIndex === targetIndex) return;
-
-    // สลับตำแหน่งใน State ทันทีเพื่อให้แสดงผลลื่นไหล
-    const updatedZones = [...zones];
-    const filtered = filteredZones;
-    const movedItem = filtered[draggedIndex];
-    
-    // หาตำแหน่งจริงใน zones ทั้งหมดแล้วสลับ
-    const realIndexFrom = zones.findIndex(z => z.id === movedItem.id);
-    const realIndexTo = zones.findIndex(z => z.id === filtered[targetIndex].id);
-
-    if (realIndexFrom !== -1 && realIndexTo !== -1) {
-      const [removed] = updatedZones.splice(realIndexFrom, 1);
-      updatedZones.splice(realIndexTo, 0, removed);
-      setZones(updatedZones);
-    }
+    const from = draggedIndex;
     setDraggedIndex(null);
+    if (from === null || from === targetIndex || orderBusy.current) return;
+
+    // จัดลำดับใหม่เฉพาะรายการที่กรองอยู่ แล้วใส่กลับตามช่องเดิมในรายการเต็ม
+    const reordered = [...filteredZones];
+    const [moved] = reordered.splice(from, 1);
+    if (!moved) return;
+    reordered.splice(targetIndex, 0, moved);
+    let cursor = 0;
+    const next = zones
+      .map((zone) => (filterBranch === 'all' || zone.branch_id === filterBranch ? reordered[cursor++] : zone))
+      .map((zone, index) => ({ ...zone, sort_order: index + 1 }));
+
+    const previous = zones;
+    setZones(next); // แสดงผลทันที
+    orderBusy.current = true;
+    try {
+      const { error } = await supabase.rpc('reorder_zones', { p_ids: next.map((zone) => zone.id) });
+      if (error) {
+        setZones(previous);
+        alert('บันทึกลำดับโซนไม่สำเร็จ: ' + error.message);
+      }
+    } finally { orderBusy.current = false; }
   };
 
   const filteredZones = filterBranch === 'all'
@@ -296,8 +290,8 @@ export default function AdminZonesPage() {
           </dialog>
           <div className="mt-5 grid max-h-80 gap-3 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
             {branches.map((branch) => <div key={branch.id} className="flex flex-col items-start justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/30 p-3">
-              <div className="min-w-0"><p className="break-words text-sm font-bold text-slate-800">{branch.name}</p><p className="mt-1 text-xs text-slate-500">{zones.filter((zone) => zone.branch_id === branch.id).length} โซน</p></div>
-              <div className="flex shrink-0 flex-wrap justify-end gap-2"><button onClick={() => { handleFilterChange(branch.id); document.getElementById('zone-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className="rounded-lg border border-blue-200 bg-white px-2 py-1.5 text-xs font-bold text-blue-800">ดูโซน</button><button disabled={savingBranch || saving} onClick={() => void removeBranch(branch)} className="rounded-lg border border-red-100 bg-red-50 px-2 py-1.5 text-xs font-bold text-red-600 disabled:opacity-50">ลบ</button></div>
+              <div className="min-w-0"><p className="wrap-break-word text-sm font-bold text-slate-800">{branch.name}</p><p className="mt-1 text-xs text-slate-500">{zones.filter((zone) => zone.branch_id === branch.id).length} โซน</p></div>
+              <div className="flex shrink-0 flex-wrap justify-end gap-2"><button onClick={() => { handleFilterChange(branch.id); document.getElementById('zone-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className="rounded-lg border border-blue-200 bg-white px-2 py-1.5 text-xs font-bold text-blue-800">ดูโซน</button><button disabled={savingBranch || saving} onClick={() => void deactivateBranch(branch)} className="rounded-lg border border-red-100 bg-red-50 px-2 py-1.5 text-xs font-bold text-red-600 disabled:opacity-50">ปิดใช้งาน</button></div>
             </div>)}
             {!loading && branches.length === 0 && <p className="py-5 text-sm text-slate-400">ยังไม่มีแผนก เพิ่มแผนกก่อนสร้างโซน</p>}
           </div>

@@ -13,8 +13,10 @@ type Rec = { date: string; dept: string; zone: string; cost: number; item: strin
 type ItemRow = { key: string; dept: string; zone: string; item: string; unit: string; qty: number; cost: number };
 type Row = { key: string; label: string; values: number[]; total: number };
 type Tbl = { rowHeader: string; cols: string[]; rows: Row[]; colTotals: number[]; grand: number };
-type View = 'overview' | 'dailyDept' | 'dailyItem' | 'deptItem' | 'zone' | 'items' | 'deptBlocks';
+type View = 'overview' | 'dailyDept' | 'dailyItem' | 'monthDept' | 'monthItem' | 'deptItem' | 'zone' | 'items' | 'deptBlocks';
 type ColMode = 'all' | 'used';
+type Measure = 'cost' | 'qty';
+const MEASURE_UNIT: Record<Measure, string> = { cost: 'บาท', qty: 'ชิ้น' };
 type Ctx = { depts: string[]; dept: string; hideEmpty: boolean; colMode: ColMode; allItems: string[] };
 
 const VIEWS: { value: View; label: string }[] = [
@@ -22,6 +24,8 @@ const VIEWS: { value: View; label: string }[] = [
   { value: 'deptBlocks', label: 'รายแผนก (รายวัน)' },
   { value: 'dailyDept', label: 'รายวัน × แผนก' },
   { value: 'dailyItem', label: 'รายวัน × สินค้า' },
+  { value: 'monthDept', label: 'รายเดือน × แผนก' },
+  { value: 'monthItem', label: 'รายเดือน × สินค้า' },
   { value: 'deptItem', label: 'แผนก × สินค้า' },
   { value: 'zone', label: 'รายโซน × สินค้า' },
   { value: 'items', label: 'รายการที่เบิก' },
@@ -41,6 +45,10 @@ const fmt = (n: number) =>
 
 const dayLabel = (d: string) =>
   new Date(d + 'T12:00:00Z').toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC' });
+
+const monthKey = (d: string) => d.slice(0, 7);
+const monthLabel = (m: string) =>
+  new Date(m + '-15T12:00:00Z').toLocaleDateString('th-TH', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 function eachDay(from: string, to: string): string[] {
   const out: string[] = [];
@@ -118,9 +126,12 @@ function makeTables(scoped: Rec[], days: string[], c: Ctx) {
     return dept === 'all' ? `${z} (${d})` : z;
   };
   const hideCols = colMode === 'used';
+  const months = [...new Set(days.map(monthKey))];
   return {
     dailyDept: buildTable('วันที่', days, dayLabel, depts, sumMap(scoped, (r) => r.date, (r) => r.dept), hideEmpty, hideEmpty),
     dailyItem: buildTable('วันที่', days, dayLabel, pickCols(allItems, deptSrc, colMode), sumMap(deptSrc, (r) => r.date, (r) => r.item), hideEmpty, hideCols),
+    monthDept: buildTable('เดือน', months, monthLabel, depts, sumMap(scoped, (r) => monthKey(r.date), (r) => r.dept), hideEmpty, hideEmpty),
+    monthItem: buildTable('เดือน', months, monthLabel, pickCols(allItems, deptSrc, colMode), sumMap(deptSrc, (r) => monthKey(r.date), (r) => r.item), hideEmpty, hideCols),
     deptItem: buildTable('แผนก', depts, (k) => k, pickCols(allItems, scoped, colMode), sumMap(scoped, (r) => r.dept, (r) => r.item), hideEmpty, hideCols),
     zone: buildTable('โซน', zoneKeys, zoneLabel, pickCols(allItems, zoneSrc, colMode), sumMap(zoneSrc, (r) => r.dept + SEP + r.zone, (r) => r.item), hideEmpty, hideCols),
   };
@@ -169,10 +180,22 @@ async function fetchAll(make: (a: number, b: number) => PromiseLike<{ data: any[
   return out;
 }
 
-type Raw = { reqs: any[]; details: any[]; branches: string[]; items: string[] };
+type Raw = { reqs: any[]; details: any[]; branches: string[]; items: string[]; pending: number | null };
 
-async function loadRaw(): Promise<Raw> {
-  const [reqs, itemRows, branchRes] = await Promise.all([
+const PENDING_STATUS = 'pending'; // ปรับให้ตรงกับค่า status ของใบเบิกที่รออนุมัติในตาราง requisitions
+const CACHE_MS = 5 * 60 * 1000;
+let rawCache: { raw: Raw; at: number } | null = null;
+
+// ใช้ข้อมูลที่โหลดไว้ซ้ำภายใน 5 นาที (สลับรายงานแล้วกลับมาไม่ต้องดึงใหม่) — force = กดรีเฟรช
+async function loadRaw(force = false): Promise<{ raw: Raw; at: number }> {
+  if (!force && rawCache && Date.now() - rawCache.at < CACHE_MS) return rawCache;
+  const raw = await fetchRaw();
+  rawCache = { raw, at: Date.now() };
+  return rawCache;
+}
+
+async function fetchRaw(): Promise<Raw> {
+  const [reqs, itemRows, branchRes, pendingRes] = await Promise.all([
     fetchAll((a, b) =>
       supabase
         .from('requisitions')
@@ -183,7 +206,9 @@ async function loadRaw(): Promise<Raw> {
         .range(a, b),
     ),
     fetchAll((a, b) => supabase.from('items').select('name').order('name').range(a, b)),
-    supabase.from('branches').select('name').order('name'),
+    // แผนกที่ปิดใช้งานแล้วไม่ต้องขึ้นเป็นคอลัมน์ว่าง (ถ้ามียอดเบิกย้อนหลัง จะถูกเติมกลับจากข้อมูลใบเบิกเอง)
+    supabase.from('branches').select('name').eq('is_active', true).order('name'),
+    supabase.from('requisitions').select('id', { count: 'exact', head: true }).eq('status', PENDING_STATUS),
   ]);
 
   const ids: string[] = reqs.map((r) => r.id);
@@ -205,7 +230,7 @@ async function loadRaw(): Promise<Raw> {
     );
     part.forEach((p) => details.push(...p));
   }
-  return { reqs, details, items: itemRows.map((i: { name: string }) => i.name).filter(Boolean), branches: (branchRes.data ?? []).map((b: { name: string }) => b.name) };
+  return { reqs, details, items: itemRows.map((i: { name: string }) => i.name).filter(Boolean), branches: (branchRes.data ?? []).map((b: { name: string }) => b.name), pending: pendingRes.error ? null : (pendingRes.count ?? 0) };
 }
 
 /* ───────────────────────── Tooltip ชื่อเต็ม ───────────────────────── */
@@ -244,7 +269,7 @@ function TruncText({ text, lines = 1, className = '' }: { text: string; lines?: 
         createPortal(
           <div
             role="tooltip"
-            className="pointer-events-none max-w-[300px] whitespace-normal break-words rounded-lg bg-slate-900 px-3 py-2 text-left text-xs font-semibold leading-snug text-white shadow-xl print:hidden"
+            className="pointer-events-none max-w-75 whitespace-normal wrap-break-word rounded-lg bg-slate-900 px-3 py-2 text-left text-xs font-semibold leading-snug text-white shadow-xl print:hidden"
             style={{
               position: 'fixed',
               zIndex: 9999,
@@ -319,7 +344,7 @@ function DataTable({ t, rows, offset = 0 }: { t: Tbl; rows: Row[]; offset?: numb
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
-              <th className={th + ' left-0 z-20 !px-1'} style={NUM_STYLE}>#</th>
+              <th className={th + ' left-0 z-20 px-1!'} style={NUM_STYLE}>#</th>
               <th className={th + ' z-20 text-left'} style={{ left: NUM_W }}>{t.rowHeader}</th>
               {t.cols.map((c, j) => (
                 <th key={c} data-c={j} className={th + ' align-middle'} style={COL_STYLE}>
@@ -336,7 +361,7 @@ function DataTable({ t, rows, offset = 0 }: { t: Tbl; rows: Row[]; offset?: numb
                   {offset + i + 1}
                 </td>
                 <th scope="row" data-r={i} className="sticky whitespace-nowrap bg-inherit px-3 py-2 text-left text-xs font-bold text-slate-700" style={{ left: NUM_W }}>
-                  <TruncText text={r.label} className="max-w-[12rem]" />
+                  <TruncText text={r.label} className="max-w-48" />
                 </th>
                 {r.values.map((v, j) => (
                   <td key={j} data-r={i} data-c={j} className={'px-3 py-2 text-right tabular-nums ' + (v === 0 ? 'text-slate-300' : 'text-slate-700')}>
@@ -403,7 +428,7 @@ function ItemsTable({ rows, showZone, total, offset = 0 }: { rows: ItemRow[]; sh
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
-              <th className={th + ' left-0 z-20 text-center !px-1'} style={NUM_STYLE}>#</th>
+              <th className={th + ' left-0 z-20 text-center px-1!'} style={NUM_STYLE}>#</th>
               <th data-c="d" className={th + ' text-left'}>แผนก</th>
               {showZone && <th data-c="z" className={th + ' text-left'}>โซน</th>}
               <th data-c="i" className={th + ' text-left'}>สินค้า</th>
@@ -419,15 +444,15 @@ function ItemsTable({ rows, showZone, total, offset = 0 }: { rows: ItemRow[]; sh
                   {offset + i + 1}
                 </td>
                 <td data-r={i} data-c="d" className="whitespace-nowrap px-3 py-2 text-xs font-bold text-slate-700">
-                  <TruncText text={r.dept} className="max-w-[10rem]" />
+                  <TruncText text={r.dept} className="max-w-40" />
                 </td>
                 {showZone && (
                   <td data-r={i} data-c="z" className="whitespace-nowrap px-3 py-2 text-xs text-slate-500">
-                    <TruncText text={r.zone || '-'} className="max-w-[10rem]" />
+                    <TruncText text={r.zone || '-'} className="max-w-40" />
                   </td>
                 )}
                 <td data-r={i} data-c="i" className="px-3 py-2 font-semibold text-slate-700">
-                  <TruncText text={r.item} className="max-w-[22rem]" />
+                  <TruncText text={r.item} className="max-w-88" />
                 </td>
                 <td data-r={i} data-c="q" className="px-3 py-2 text-right tabular-nums">{fmt(r.qty)}</td>
                 <td data-r={i} data-c="u" className="px-3 py-2 text-xs text-slate-500">{r.unit}</td>
@@ -447,14 +472,14 @@ function ItemsTable({ rows, showZone, total, offset = 0 }: { rows: ItemRow[]; sh
   );
 }
 
-function DeptBlock({ name, t, hideEmpty }: { name: string; t: Tbl; hideEmpty: boolean }) {
+function DeptBlock({ name, t, hideEmpty, unit }: { name: string; t: Tbl; hideEmpty: boolean; unit: string }) {
   const rows = hideEmpty ? t.rows.filter((r) => r.total !== 0) : t.rows;
   const th = 'sticky top-0 z-10 bg-emerald-600 px-2 py-2 text-center text-xs font-bold leading-tight text-white';
   return (
     <details open className="overflow-hidden rounded-xl border border-emerald-200">
       <summary className="flex cursor-pointer items-center justify-between gap-3 bg-emerald-600 px-4 py-2.5 text-white">
-        <span className="min-w-0 font-black"><TruncText text={name} className="max-w-[28rem]" /></span>
-        <span className="shrink-0 text-sm font-bold tabular-nums">รวม {fmt(t.grand)} บาท</span>
+        <span className="min-w-0 font-black"><TruncText text={name} className="max-w-md" /></span>
+        <span className="shrink-0 text-sm font-bold tabular-nums">รวม {fmt(t.grand)} {unit}</span>
       </summary>
       <div className="p-2">
         <GridGuide>
@@ -462,7 +487,7 @@ function DeptBlock({ name, t, hideEmpty }: { name: string; t: Tbl; hideEmpty: bo
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr>
-                  <th className={th + ' left-0 z-20 !px-1'} style={NUM_STYLE}>#</th>
+                  <th className={th + ' left-0 z-20 px-1!'} style={NUM_STYLE}>#</th>
                   <th className={th + ' z-20 whitespace-nowrap text-left'} style={{ left: NUM_W }}>วัน เดือน ปี</th>
                   <th data-c="x" className={th + ' whitespace-nowrap'}>ยอดเบิกทั้งหมด</th>
                   {t.cols.map((c, j) => (
@@ -508,23 +533,71 @@ const SELECT = 'h-10 rounded-xl border border-blue-100 bg-white px-3 text-sm fon
 /* ───────────────────────── หน้ารายงาน ───────────────────────── */
 export default function SupplyUseReports() {
   const [raw, setRaw] = useState<Raw | null>(null);
+  const [loadedAt, setLoadedAt] = useState<number | null>(null);
+  const [reloading, setReloading] = useState(false);
   const [error, setError] = useState('');
-  const [view, setView] = useState<View>('overview');
-  const [range, setRange] = useState(() => reportDateRange('month'));
-  const [dept, setDept] = useState('all');
-  const [hideEmpty, setHideEmpty] = useState(false);
+  // ตัวกรองหลักเก็บใน URL (?view=&from=&to=&dept=&measure=&cols=&hide=) เพื่อรีเฟรชแล้วไม่หาย และส่งลิงก์ให้คนอื่นได้
+  const urlParams = () => new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search);
+  const dateParam = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '');
+  const [view, setView] = useState<View>(() => {
+    const v = urlParams().get('view');
+    return VIEWS.some((x) => x.value === v) ? (v as View) : 'overview';
+  });
+  const [range, setRange] = useState(() => {
+    const p = urlParams();
+    return p.has('from') || p.has('to') ? { from: dateParam(p.get('from')), to: dateParam(p.get('to')) } : reportDateRange('month');
+  });
+  const [dept, setDept] = useState(() => urlParams().get('dept') || 'all');
+  const [hideEmpty, setHideEmpty] = useState(() => urlParams().get('hide') === '1');
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [byZone, setByZone] = useState(false);
-  const [colMode, setColMode] = useState<ColMode>('all');
+  const [colMode, setColMode] = useState<ColMode>(() => (urlParams().get('cols') === 'used' ? 'used' : 'all'));
+  const [measure, setMeasure] = useState<Measure>(() => (urlParams().get('measure') === 'qty' ? 'qty' : 'cost'));
+  const unit = MEASURE_UNIT[measure];
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const put = (k: string, v: string, def: string) => (v === def ? url.searchParams.delete(k) : url.searchParams.set(k, v));
+    put('view', view, 'overview');
+    put('dept', dept, 'all');
+    put('measure', measure, 'cost');
+    put('cols', colMode, 'all');
+    put('hide', hideEmpty ? '1' : '', '');
+    url.searchParams.set('from', range.from);
+    url.searchParams.set('to', range.to);
+    const next = url.pathname + url.search + url.hash;
+    if (next !== window.location.pathname + window.location.search + window.location.hash) window.history.replaceState(window.history.state, '', next);
+  }, [view, dept, measure, colMode, hideEmpty, range]);
+
+  // ออกจากรายงานนี้ → ล้างตัวกรองออกจาก URL ไม่ให้ไปติดรายงานอื่น (คง ?report= ไว้)
+  useEffect(() => () => {
+    const url = new URL(window.location.href);
+    ['view', 'dept', 'measure', 'cols', 'hide', 'from', 'to'].forEach((k) => url.searchParams.delete(k));
+    window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+  }, []);
 
   useEffect(() => {
     let alive = true;
     loadRaw()
-      .then((r) => alive && setRaw(r))
-      .catch(() => alive && setError('โหลดข้อมูลไม่สำเร็จ กรุณาลองรีเฟรชหน้านี้อีกครั้ง'));
+      .then((r) => { if (alive) { setRaw(r.raw); setLoadedAt(r.at); } })
+      .catch(() => { if (alive) setError('โหลดข้อมูลไม่สำเร็จ กรุณาลองรีเฟรชหน้านี้อีกครั้ง'); });
     return () => { alive = false; };
   }, []);
+
+  const refresh = async () => {
+    setReloading(true);
+    try {
+      const r = await loadRaw(true);
+      setRaw(r.raw);
+      setLoadedAt(r.at);
+      setError('');
+    } catch {
+      setError('โหลดข้อมูลไม่สำเร็จ กรุณาลองอีกครั้ง');
+    } finally {
+      setReloading(false);
+    }
+  };
 
   // ใบเบิกที่อนุมัติ + รายการ → แถวข้อมูลแบน ๆ (วัน, แผนก, โซน, สินค้า, ยอดเงิน)
   const recs = useMemo<Rec[]>(() => {
@@ -561,6 +634,10 @@ export default function SupplyUseReports() {
     return list;
   }, [raw, recs]);
 
+  useEffect(() => {
+    if (raw && dept !== 'all' && !depts.includes(dept)) setDept('all');
+  }, [raw, depts, dept]);
+
   const itemNames = useMemo(() => [...new Set([...(raw?.items ?? []), ...recs.map((r) => r.item)])], [raw, recs]);
 
   const scoped = useMemo(
@@ -576,25 +653,44 @@ export default function SupplyUseReports() {
     return start && end ? eachDay(start, end) : [];
   }, [scoped, range]);
 
-  const byDept = useMemo(() => totalsBy(scoped, (r) => r.dept), [scoped]);
-  const byItem = useMemo(() => totalsBy(scoped, (r) => r.item), [scoped]);
+  // ข้อมูลที่ใช้คำนวณตารางทั้งหมด: โหมด "ยอดเงิน" ใช้ cost, โหมด "จำนวน" ใช้ qty (ใส่ลงฟิลด์ cost เพื่อใช้ฟังก์ชันเดิมร่วมกัน)
+  const data = useMemo<Rec[]>(
+    () => (measure === 'cost' ? scoped : scoped.map((r) => ({ ...r, cost: r.qty }))),
+    [scoped, measure],
+  );
 
-  const total = scoped.reduce((s, r) => s + r.cost, 0);
-  const activeDays = new Set(scoped.filter((r) => r.cost !== 0).map((r) => r.date)).size;
+  const byDept = useMemo(() => totalsBy(data, (r) => r.dept), [data]);
+  const byItem = useMemo(() => totalsBy(data, (r) => r.item), [data]);
+  const zoneTotals = useMemo(
+    () => totalsBy(data.filter((r) => r.zone), (r) => `${r.zone} (${r.dept})`),
+    [data],
+  );
+  const zoneTotal = [...zoneTotals.values()].reduce((s, v) => s + v, 0);
+
+  // รายการที่เบิกจริงแต่ไม่มีราคาตอนเบิก (ราคา 0/ว่าง) → ยอดเงินจะเป็น 0 ทำให้ยอดรวมต่ำกว่าจริง
+  const unpriced = useMemo(() => {
+    const names = new Set<string>();
+    let lines = 0;
+    for (const r of scoped) if (r.qty > 0 && r.cost === 0) { names.add(r.item); lines++; }
+    return { lines, names: [...names].sort((a, b) => a.localeCompare(b, 'th')) };
+  }, [scoped]);
+
+  const total = data.reduce((s, r) => s + r.cost, 0);
+  const activeDays = new Set(data.filter((r) => r.cost !== 0).map((r) => r.date)).size;
   const topDept = [...byDept.entries()].sort((a, b) => b[1] - a[1])[0];
   const topItem = [...byItem.entries()].sort((a, b) => b[1] - a[1])[0];
 
   const allItems = useMemo(() => rankItems(itemNames, byItem), [itemNames, byItem]);
 
   const tables = useMemo(
-    () => makeTables(scoped, days, { depts, dept, hideEmpty, colMode, allItems }),
-    [scoped, days, depts, dept, hideEmpty, colMode, allItems],
+    () => makeTables(data, days, { depts, dept, hideEmpty, colMode, allItems }),
+    [data, days, depts, dept, hideEmpty, colMode, allItems],
   );
   const table: Tbl | null = view === 'overview' || view === 'items' || view === 'deptBlocks' ? null : tables[view];
 
   const blocks = useMemo(
-    () => makeBlocks(scoped, days, { depts, dept, hideEmpty, colMode, allItems }),
-    [scoped, days, depts, dept, hideEmpty, colMode, allItems],
+    () => makeBlocks(data, days, { depts, dept, hideEmpty, colMode, allItems }),
+    [data, days, depts, dept, hideEmpty, colMode, allItems],
   );
 
   const itemRows = useMemo(() => makeItemRows(scoped, dept, search, byZone), [scoped, dept, search, byZone]);
@@ -621,12 +717,12 @@ export default function SupplyUseReports() {
     const NUM = '#,##0.00;-#,##0.00;"-"';
     const deptNote = dept === 'all' ? '' : ` · แผนก${dept}`;
 
-    const head = (ws: ExcelJS.Worksheet, title: string, lastCol: number) => {
+    const head = (ws: ExcelJS.Worksheet, title: string, lastCol: number, showUnit = true) => {
       ws.mergeCells(1, 1, 1, lastCol);
       ws.getCell(1, 1).value = title;
       ws.getCell(1, 1).font = { bold: true, size: 14 };
       ws.mergeCells(2, 1, 2, lastCol);
-      ws.getCell(2, 1).value = `ช่วงข้อมูล: ${rangeLabel}`;
+      ws.getCell(2, 1).value = `ช่วงข้อมูล: ${rangeLabel}` + (showUnit ? ` · ตัวเลขเป็น${measure === 'cost' ? 'ยอดเงิน (บาท)' : 'จำนวนที่เบิก (รวมทุกหน่วย)'}` : '');
       ws.getCell(2, 1).font = { italic: true, color: { argb: 'FF666666' } };
     };
     const styleHeader = (row: ExcelJS.Row) => {
@@ -670,29 +766,30 @@ export default function SupplyUseReports() {
 
     // ภาพรวม
     const ov = wb.addWorksheet('ภาพรวม');
-    head(ov, 'สรุป Supply Use', 4);
-    const addList = (title: string, items: { label: string; value: number }[]) => {
-      styleHeader(ov.addRow([title, 'ยอดเบิก (บาท)', '%']));
+    head(ov, measure === 'cost' ? 'สรุป Supply Use (ยอดเงิน บาท)' : 'สรุป Supply Use (จำนวนที่เบิก)', 4);
+    const addList = (title: string, items: { label: string; value: number }[], base: number) => {
+      styleHeader(ov.addRow([title, measure === 'cost' ? 'ยอดเบิก (บาท)' : 'จำนวนที่เบิก (ชิ้น)', '%']));
       const start = ov.rowCount + 1;
       items.forEach((it) => {
-        const row = ov.addRow([it.label, it.value, total ? it.value / total : 0]);
+        const row = ov.addRow([it.label, it.value, base ? it.value / base : 0]);
         row.getCell(2).numFmt = NUM;
         row.getCell(3).numFmt = '0.0%';
       });
-      const sum = ov.addRow(['รวม', items.length ? { formula: `SUM(B${start}:B${ov.rowCount})`, result: total } : 0]);
+      const sum = ov.addRow(['รวม', items.length ? { formula: `SUM(B${start}:B${ov.rowCount})`, result: base } : 0]);
       sum.font = { bold: true };
       sum.getCell(2).numFmt = NUM;
       ov.addRow([]);
     };
     ov.addRow([]);
-    addList('สรุปการเบิกรายแผนก', ranked(byDept));
-    addList('สรุปยอดเบิกแยกตามสินค้า', ranked(byItem));
+    addList('สรุปการเบิกรายแผนก', ranked(byDept), total);
+    addList('สรุปการเบิกรายโซน (เฉพาะใบเบิกที่ระบุโซน)', ranked(zoneTotals), zoneTotal);
+    addList(measure === 'cost' ? 'สรุปยอดเบิกแยกตามสินค้า' : 'สรุปจำนวนที่เบิกแยกตามสินค้า', ranked(byItem), total);
     ov.getColumn(1).width = 40;
     ov.getColumn(2).width = 18;
     ov.getColumn(3).width = 10;
 
     // รายแผนก (รายวัน) — แยกชีตละแผนก (แท็บสีเขียว) แทนการต่อบล็อกไปทางขวา
-    const usedNames = new Set(['ภาพรวม', 'รายวัน × แผนก', 'รายวัน × สินค้า', 'แผนก × สินค้า', 'รายโซน × สินค้า', 'รายการที่เบิก']);
+    const usedNames = new Set(['ภาพรวม', 'รายวัน × แผนก', 'รายวัน × สินค้า', 'รายเดือน × แผนก', 'รายเดือน × สินค้า', 'แผนก × สินค้า', 'รายโซน × สินค้า', 'รายการที่เบิก']);
     const sheetName = (raw: string) => {
       const base = (raw.replace(/[:\\/?*[\]]/g, ' ').trim() || 'แผนก').slice(0, 31);
       let name = base;
@@ -767,19 +864,21 @@ export default function SupplyUseReports() {
       ws.views = [{ state: 'frozen', xSplit: 2, ySplit: 4 }];
       ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: Math.max(4, last), column: lastCol } };
     };
-    makeBlocks(scoped, days, { depts, dept, hideEmpty, colMode: 'all', allItems })
+    makeBlocks(data, days, { depts, dept, hideEmpty, colMode: 'all', allItems })
       .filter((b) => b.t.grand !== 0 && b.t.rows.length > 0)
       .forEach((b) => addDeptSheet(b.name, b.t));
 
     addTableSheet('รายวัน × แผนก', 'ยอดเบิกรายวัน แยกตามแผนก', tables.dailyDept);
     addTableSheet('รายวัน × สินค้า', 'ยอดเบิกรายวัน แยกตามสินค้า' + deptNote, tables.dailyItem);
+    addTableSheet('รายเดือน × แผนก', 'ยอดเบิกรายเดือน แยกตามแผนก', tables.monthDept);
+    addTableSheet('รายเดือน × สินค้า', 'ยอดเบิกรายเดือน แยกตามสินค้า' + deptNote, tables.monthItem);
     addTableSheet('แผนก × สินค้า', 'ตารางไขว้ แผนก × สินค้า', tables.deptItem);
     addTableSheet('รายโซน × สินค้า', 'สรุปค่าใช้จ่ายรายโซน แยกตามสินค้า' + deptNote, tables.zone);
 
     // รายการที่เบิก (ตามตัวกรองในหน้าจอ)
     const iw = wb.addWorksheet('รายการที่เบิก');
     const iCols = byZone ? 6 : 5;
-    head(iw, 'รายการสินค้าที่แต่ละแผนกเบิก' + deptNote, iCols);
+    head(iw, 'รายการสินค้าที่แต่ละแผนกเบิก' + deptNote, iCols, false);
     iw.addRow([]);
     styleHeader(iw.addRow(['แผนก', ...(byZone ? ['โซน'] : []), 'สินค้า', 'จำนวน', 'หน่วย', 'ยอดเงิน (บาท)']));
     itemRows.forEach((r) => iw.addRow([r.dept, ...(byZone ? [r.zone] : []), r.item, r.qty, r.unit, r.cost]));
@@ -815,6 +914,14 @@ export default function SupplyUseReports() {
             <>
             <button
               type="button"
+              onClick={refresh}
+              disabled={!raw || reloading}
+              className="inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-white px-4 py-2.5 text-sm font-bold text-blue-700 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50/50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <span>🔄</span><span>{reloading ? 'กำลังโหลด...' : 'รีเฟรช'}</span>
+            </button>
+            <button
+              type="button"
               onClick={exportExcel}
               disabled={!raw || scoped.length === 0}
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-100 bg-white px-4 py-2.5 text-sm font-bold text-emerald-600 shadow-sm transition-all hover:border-emerald-300 hover:bg-emerald-50/50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
@@ -835,6 +942,24 @@ export default function SupplyUseReports() {
         <div className="space-y-3">
           <div className="text-sm"><ReportDatePresets from={range.from} to={range.to} onChange={changeRange} /></div>
           <div className="flex flex-wrap items-end gap-3">
+            {view !== 'items' && (
+              <div role="group" aria-label="แสดงตัวเลขเป็น" className="text-xs font-bold text-slate-500">
+                แสดงตัวเลขเป็น
+                <div className="mt-1 flex overflow-hidden rounded-xl border border-blue-100">
+                  {([['cost', 'ยอดเงิน (บาท)'], ['qty', 'จำนวนชิ้น']] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={measure === value}
+                      onClick={() => setMeasure(value)}
+                      className={'h-10 px-4 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-700 ' + (measure === value ? 'bg-[#1a3a6e] text-white' : 'bg-white text-slate-600 hover:bg-blue-50')}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <label className="text-xs font-bold text-slate-500">
               ตั้งแต่วันที่
               <input type="date" value={range.from} max={range.to || undefined} onChange={(e) => changeRange({ ...range, from: e.target.value })} className={SELECT + ' mt-1 block'} />
@@ -843,7 +968,7 @@ export default function SupplyUseReports() {
               ถึงวันที่
               <input type="date" value={range.to} min={range.from || undefined} onChange={(e) => changeRange({ ...range, to: e.target.value })} className={SELECT + ' mt-1 block'} />
             </label>
-            {(view === 'dailyItem' || view === 'zone' || view === 'items' || view === 'deptBlocks') && (
+            {(view === 'dailyItem' || view === 'monthItem' || view === 'zone' || view === 'items' || view === 'deptBlocks') && (
               <label className="text-xs font-bold text-slate-500">
                 แผนก
                 <select value={dept} onChange={(e) => { setDept(e.target.value); setPage(1); }} className={SELECT + ' mt-1 block'}>
@@ -864,7 +989,7 @@ export default function SupplyUseReports() {
                 </label>
               </>
             )}
-            {(view === 'deptBlocks' || view === 'dailyItem' || view === 'deptItem' || view === 'zone') && (
+            {(view === 'deptBlocks' || view === 'dailyItem' || view === 'monthItem' || view === 'deptItem' || view === 'zone') && (
               <label className="text-xs font-bold text-slate-500">
                 คอลัมน์แสดงเป็น
                 <select value={colMode} onChange={(e) => setColMode(e.target.value as ColMode)} className={SELECT + ' mt-1 block'}>
@@ -890,16 +1015,27 @@ export default function SupplyUseReports() {
         <>
           <p className="hidden text-sm font-semibold text-slate-600 print:block">สรุป Supply Use · {rangeLabel}</p>
 
+          {raw.pending ? (
+            <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800 print:hidden">
+              📝 มีใบเบิกรออนุมัติ {raw.pending.toLocaleString('th-TH')} ใบ — ยังไม่นับรวมในรายงานนี้ (นับเฉพาะใบเบิกที่อนุมัติแล้ว)
+            </p>
+          ) : null}
+          {loadedAt && (
+            <p className="text-xs font-semibold text-slate-400 print:hidden">
+              ข้อมูล ณ {new Date(loadedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' })} น. · กด “รีเฟรช” เพื่อดึงข้อมูลล่าสุด
+            </p>
+          )}
+
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {[
-              ['ยอดเบิกรวม (บาท)', fmt(total)],
-              ['เฉลี่ยต่อวันที่มีการเบิก', activeDays ? fmt(total / activeDays) : '-'],
-              ['แผนกที่เบิกสูงสุด', topDept ? topDept[0] : '-', topDept ? fmt(topDept[1]) + ' บาท' : ''],
-              ['สินค้าที่เบิกสูงสุด', topItem ? topItem[0] : '-', topItem ? fmt(topItem[1]) + ' บาท' : ''],
+              [measure === 'cost' ? 'ยอดเบิกรวม (บาท)' : 'จำนวนที่เบิกรวม (ชิ้น)', fmt(total)],
+              ['เฉลี่ยต่อวันที่มีการเบิก (' + unit + ')', activeDays ? fmt(total / activeDays) : '-'],
+              ['แผนกที่เบิกสูงสุด', topDept ? topDept[0] : '-', topDept ? fmt(topDept[1]) + ' ' + unit : ''],
+              ['สินค้าที่เบิกสูงสุด', topItem ? topItem[0] : '-', topItem ? fmt(topItem[1]) + ' ' + unit : ''],
             ].map(([label, value, sub]) => (
               <div key={label} className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
                 <p className="text-xs font-bold text-slate-500">{label}</p>
-                <p className="mt-1 break-words text-lg font-black leading-tight text-[#1a3a6e] tabular-nums">{value}</p>
+                <p className="mt-1 wrap-break-word text-lg font-black leading-tight text-[#1a3a6e] tabular-nums">{value}</p>
                 {sub && <p className="mt-0.5 text-xs font-semibold text-slate-400 tabular-nums">{sub}</p>}
               </div>
             ))}
@@ -920,11 +1056,26 @@ export default function SupplyUseReports() {
               ))}
             </div>
 
+            {view !== 'items' && (
+              <p className="text-xs font-semibold text-slate-500">
+                {measure === 'cost'
+                  ? 'ตัวเลขในหน้านี้เป็นยอดเงิน (บาท) = จำนวน × ราคาตอนเบิก'
+                  : 'ตัวเลขในหน้านี้เป็นจำนวนที่เบิก นับรวมทุกหน่วย (เช่น ชิ้น กล่อง แพ็ค) ไม่ใช่ยอดเงิน'}
+              </p>
+            )}
+
+            {measure === 'cost' && unpriced.lines > 0 && (
+              <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold leading-relaxed text-amber-800">
+                ⚠️ มี {unpriced.lines.toLocaleString('th-TH')} รายการ ({unpriced.names.length} สินค้า) ที่ไม่มีราคาตอนเบิก ยอดเงินของรายการเหล่านี้จึงนับเป็น 0 และยอดรวมอาจต่ำกว่าจริง เช่น {unpriced.names.slice(0, 5).join(', ')}{unpriced.names.length > 5 ? ' …' : ''}
+              </p>
+            )}
+
             {scoped.length === 0 ? (
               <p className="py-10 text-center text-sm text-slate-400">ไม่มีข้อมูลการเบิกในช่วงที่เลือก</p>
             ) : view === 'overview' ? (
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
                 <ShareList title="สรุปการเบิกรายแผนก" items={ranked(byDept)} total={total} />
+                <ShareList title="สรุปการเบิกรายโซน 15 อันดับ" items={ranked(zoneTotals).slice(0, 15)} total={zoneTotal} />
                 <ShareList title="สินค้าที่เบิกสูงสุด 15 อันดับ" items={ranked(byItem).slice(0, 15)} total={total} />
               </div>
             ) : view === 'deptBlocks' ? (
@@ -932,7 +1083,7 @@ export default function SupplyUseReports() {
                 <p className="py-10 text-center text-sm text-slate-400">ไม่มีข้อมูลการเบิกในช่วงที่เลือก</p>
               ) : (
                 <div className="space-y-4">
-                  {blocks.map((b) => <DeptBlock key={b.name} name={b.name} t={b.t} hideEmpty={hideEmpty} />)}
+                  {blocks.map((b) => <DeptBlock key={b.name} name={b.name} t={b.t} hideEmpty={hideEmpty} unit={unit} />)}
                 </div>
               )
             ) : view === 'items' ? (

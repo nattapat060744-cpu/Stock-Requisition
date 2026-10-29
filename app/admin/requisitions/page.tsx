@@ -398,8 +398,9 @@ export default function AdminRequisitionsPage() {
                   <table className="w-full table-fixed text-left text-sm">
                     <colgroup>
                       <col className="w-16"/>
-                      <col className="w-[30%]"/>
-                      <col className="w-[32%]"/>
+                      <col className="w-[20%]"/>
+                      <col className="w-[22%]"/>
+                      <col className="w-[26%]"/>
                       <col className="w-28"/>
                       <col className="w-36"/>
                     </colgroup>
@@ -408,6 +409,7 @@ export default function AdminRequisitionsPage() {
                         <th scope="col" className="px-3 py-2">เวลา</th>
                         <th scope="col" className="px-3 py-2">แผนก / โซน</th>
                         <th scope="col" className="px-3 py-2">ผู้เบิก / ผู้ส่ง</th>
+                        <th scope="col" className="px-3 py-2">หมายเหตุ</th>
                         <th scope="col" className="px-3 py-2">สถานะ</th>
                         <th scope="col" className="px-3 py-2 text-right">ดำเนินการ</th>
                       </tr>
@@ -429,6 +431,19 @@ export default function AdminRequisitionsPage() {
                                 หัวหน้า / รองหัวหน้า: {req.sender_name?.trim()||'ยังไม่ระบุ'}
                               </p>
                             )}
+                          </td>
+                          <td className="p-3 text-xs">
+                            {req.note?.trim() && (
+                              <p title={req.note} className="line-clamp-2 whitespace-pre-wrap wrap-break-word font-semibold text-slate-600">
+                                <span className="text-slate-400">ผู้เบิก: </span>{req.note}
+                              </p>
+                            )}
+                            {req.admin_note?.trim() && (
+                              <p title={req.admin_note} className="mt-1 line-clamp-2 whitespace-pre-wrap wrap-break-word font-semibold text-blue-800">
+                                <span className="text-blue-400">ผู้ตรวจสอบ: </span>{req.admin_note}
+                              </p>
+                            )}
+                            {!req.note?.trim() && !req.admin_note?.trim() && <span className="text-slate-300">—</span>}
                           </td>
                           <td className="p-3">
                             <div className="flex items-center gap-1 flex-wrap">
