@@ -505,6 +505,7 @@ export default function RequisitionHistory() {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-blue-50/60 text-blue-950 border-b border-blue-100 font-bold">
+                  <th className="w-14 py-3 px-3.5 text-center">ลำดับ</th>
                   <th className="py-3 px-3.5">วันเวลา</th>
                   <th className="py-3 px-3.5">ผู้เบิก</th>
                   <th className="py-3 px-3.5">แผนก / โซน</th>
@@ -515,13 +516,16 @@ export default function RequisitionHistory() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-blue-50">
-                {rows.map((entry) => {
+                {rows.map((entry, index) => {
                   const entryTotal = entry.requisition_details.reduce(
                     (sum, d) => sum + (d.quantity || 0) * (d.price_at_time || 0),
                     0
                   );
                   return (
                     <tr key={entry.id} className="hover:bg-blue-50/30 transition-colors">
+                      <td className="py-3.5 px-3.5 text-center text-[11px] font-semibold tabular-nums text-slate-400">
+                        {(page - 1) * 20 + index + 1}
+                      </td>
                       <td className="py-3.5 px-3.5 text-slate-600 font-mono text-[11px] whitespace-nowrap">
                         {date(entry.created_at)}
                       </td>
@@ -557,7 +561,7 @@ export default function RequisitionHistory() {
                 })}
                 {!rows.length && (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400 font-medium">
+                    <td colSpan={8} className="py-12 text-center text-slate-400 font-medium">
                       ไม่พบประวัติการเบิกตามเงื่อนไข
                     </td>
                   </tr>
@@ -586,7 +590,7 @@ export default function RequisitionHistory() {
           onClick={(e) => {
             if (e.target === e.currentTarget) monthlyDialogRef.current?.close();
           }}
-          className="fixed inset-0 m-auto h-dvh w-screen border-0 bg-transparent p-4 outline-none backdrop:bg-slate-950/70 open:flex open:items-center open:justify-center z-[65]"
+          className="fixed inset-0 m-auto h-dvh w-screen border-0 bg-transparent p-4 outline-none backdrop:bg-slate-950/70 open:flex open:items-center open:justify-center z-65"
         >
           <div className="relative w-full max-w-md rounded-2xl border border-blue-100 bg-white overflow-hidden shadow-2xl space-y-0">
             <div className="bg-[#1a3a6e] px-5 py-4 text-white flex items-center justify-between">
@@ -668,7 +672,7 @@ export default function RequisitionHistory() {
           onClick={(e) => {
             if (e.target === e.currentTarget) detailDialogRef.current?.close();
           }}
-          className="fixed inset-0 m-auto h-dvh w-screen border-0 bg-transparent p-4 outline-none backdrop:bg-slate-950/70 open:flex open:items-center open:justify-center z-[60]"
+          className="fixed inset-0 m-auto h-dvh w-screen border-0 bg-transparent p-4 outline-none backdrop:bg-slate-950/70 open:flex open:items-center open:justify-center z-60"
         >
           <div className="relative w-full max-w-2xl rounded-2xl border border-blue-100 bg-white overflow-hidden shadow-2xl space-y-0">
             <div className="bg-[#1a3a6e] px-6 py-4 text-white flex items-center justify-between">
@@ -717,7 +721,7 @@ export default function RequisitionHistory() {
                 )}
               </div>
 
-              <div className="space-y-3 text-sm"><p className="whitespace-pre-wrap break-words"><strong>หมายเหตุใบเบิก:</strong> {activeEntry.note||'—'}</p><p className="whitespace-pre-wrap break-words"><strong>หมายเหตุผู้ตรวจสอบ:</strong> {activeEntry.admin_note||'—'}</p><RequestedItems original={activeEntry.requested_items} current={activeEntry.requisition_details} status={activeEntry.status}/></div>
+              <div className="space-y-3 text-sm"><p className="whitespace-pre-wrap wrap-break-word"><strong>หมายเหตุใบเบิก:</strong> {activeEntry.note||'—'}</p><p className="whitespace-pre-wrap wrap-break-word"><strong>หมายเหตุผู้ตรวจสอบ:</strong> {activeEntry.admin_note||'—'}</p><RequestedItems original={activeEntry.requested_items} current={activeEntry.requisition_details} status={activeEntry.status}/></div>
               <div className="space-y-3">
                 <p className="text-xs font-black text-blue-900 uppercase tracking-wider">
                   รายการสินค้าที่เบิก ({activeEntry.requisition_details.length} รายการ)
@@ -727,6 +731,7 @@ export default function RequisitionHistory() {
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-blue-50/70 text-slate-600 font-bold border-b border-blue-100">
+                        <th className="w-12 py-2.5 px-3 text-center">ลำดับ</th>
                         <th className="py-2.5 px-3">สินค้า</th>
                         <th className="py-2.5 px-3 text-right">จำนวน</th>
                         <th className="py-2.5 px-3">หน่วย</th>
@@ -735,8 +740,9 @@ export default function RequisitionHistory() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-blue-50">
-                      {activeEntry.requisition_details.map((detail) => (
+                      {activeEntry.requisition_details.map((detail, index) => (
                         <tr key={detail.id} className="hover:bg-blue-50/20">
+                          <td className="py-3 px-3 text-center text-[11px] font-semibold tabular-nums text-slate-400">{index + 1}</td>
                           <td className="py-3 px-3 font-bold text-slate-800">
                             <div className="flex items-center gap-2">
                               {detail.items?.image_url && (
@@ -803,7 +809,7 @@ export default function RequisitionHistory() {
           onClick={(e) => {
             if (e.target === e.currentTarget) imageDialogRef.current?.close();
           }}
-          className="fixed inset-0 m-auto h-dvh w-screen border-0 bg-transparent p-4 outline-none backdrop:bg-slate-950/80 open:flex open:items-center open:justify-center z-[70]"
+          className="fixed inset-0 m-auto h-dvh w-screen border-0 bg-transparent p-4 outline-none backdrop:bg-slate-950/80 open:flex open:items-center open:justify-center z-70"
         >
           <div className="relative max-w-2xl rounded-2xl border border-blue-100 bg-white p-4 shadow-2xl">
             <button

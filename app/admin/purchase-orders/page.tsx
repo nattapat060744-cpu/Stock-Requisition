@@ -20,10 +20,19 @@ interface Receipt {
 const input = 'w-full rounded-xl border border-blue-100 bg-blue-50/30 px-3 py-2.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-60';
 const button = 'rounded-xl bg-[#1a3a6e] px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed';
 const secondary = 'rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm font-bold text-blue-900 hover:bg-blue-50 disabled:opacity-50';
+const statusStyle = {
+ open: { badge: 'border-amber-200 bg-amber-50 text-amber-800', dot: 'bg-amber-500', accent: 'border-l-amber-400', icon: '⏳', hint: 'ยังไม่ได้รับของ' },
+ partial: { badge: 'border-sky-200 bg-sky-50 text-sky-800', dot: 'bg-sky-500', accent: 'border-l-sky-400', icon: '📦', hint: 'รับแล้วบางส่วน' },
+ received: { badge: 'border-emerald-200 bg-emerald-50 text-emerald-800', dot: 'bg-emerald-500', accent: 'border-l-emerald-400', icon: '✅', hint: 'ปิดรายการแล้ว' },
+} as const;
 const money = (value: number) => value.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const statusText = { open: 'รอรับสินค้า', partial: 'รับบางส่วน', received: 'รับครบแล้ว' };
 const dateText = (value: string) => new Date(value).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' });
 const message = (error: unknown) => error && typeof error === 'object' && 'message' in error ? String(error.message) : 'เกิดข้อผิดพลาด กรุณาลองอีกครั้ง';
+function StatusBadge({ status }: { status: Order['status'] }) {
+ const style = statusStyle[status];
+ return <span className={'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ' + style.badge}><span aria-hidden="true" className={'h-1.5 w-1.5 rounded-full ' + style.dot} />{statusText[status]}</span>;
+}
 function Field({ label, children }: { label: string; children: ReactNode }) {
  return <label className="block space-y-1.5"><span className="text-xs font-bold text-blue-800">{label}</span>{children}</label>;
 }
@@ -33,7 +42,7 @@ function Modal({ title, onClose, busy, children, footer, pinned, fillBody=false 
  return <dialog ref={ref} onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }} aria-label={title}
   className="m-auto w-[calc(100%-2rem)] max-w-[1600px] max-h-[calc(100dvh-2rem)] overflow-hidden rounded-2xl border border-blue-100 bg-white p-0 text-slate-800 shadow-2xl backdrop:bg-slate-900/50">
   <div className={"flex max-h-[calc(100dvh-2rem)] flex-col "+(fillBody?"h-[calc(100dvh-2rem-2px)]":"")}>
-   <div className="flex shrink-0 items-center justify-between gap-3 border-b border-blue-100 bg-[#1a3a6e] p-5 text-white">
+   <div className="flex shrink-0 items-center justify-between gap-3 border-b border-blue-100 bg-linear-to-r from-[#1a3a6e] to-[#2d5aa8] p-5 text-white">
     <h2 className="text-lg font-black">{title}</h2><button disabled={busy} onClick={onClose} aria-label="ปิดหน้าต่าง" className="h-8 w-8 rounded-full bg-white/15 text-xl disabled:opacity-50">×</button>
    </div>
    {pinned&&<div data-po-pinned className="max-h-[50dvh] shrink-0 overflow-y-auto border-b border-blue-100 bg-white px-5 py-4 sm:px-6">{pinned}</div>}
@@ -197,20 +206,63 @@ export default function PurchaseOrdersPage() {
  const visible = orders.filter((order) => (filter === 'all' || order.status === filter) && (order.po_number + ' ' + order.supplier).toLowerCase().includes(search.toLowerCase()));
  const errorsView = formErrors.length > 0 && <div role="alert" className="mb-4 max-h-40 overflow-y-auto rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"><ul className="list-disc pl-5">{formErrors.map((text, index) => <li key={index}>{text}</li>)}</ul></div>;
 
+ const counts = { all: orders.length, open: orders.filter((o) => o.status === 'open').length, partial: orders.filter((o) => o.status === 'partial').length, received: orders.filter((o) => o.status === 'received').length };
+ const steps = ['บันทึกเอกสาร', 'ตรวจรายการ', 'รับสินค้า', 'เพิ่มจำนวนในคลัง'];
+ const hasFilter = search.trim() !== '' || filter !== 'all';
+
  return <div className="min-h-screen bg-[#e8edf5] px-3 py-6 text-slate-800 sm:px-6">
   <div className="mx-auto max-w-[1600px] space-y-5">
-   <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-    <div><h1 className="text-xl font-black text-[#1a3a6e]">📋 นำเข้าสินค้า / รับเข้าคลัง</h1><p className="mt-1 text-xs font-semibold text-slate-500">บันทึกเอกสาร → ตรวจรายการ → รับสินค้า → เพิ่มจำนวนในคลัง</p></div>
-    <div className="flex flex-wrap gap-2"><a href="/admin/reports/purchase-orders" className={secondary}>รายงาน PO</a><button className={secondary} disabled={loading} onClick={() => { setError(''); setLoading(true); void load(); }}>รีเฟรช</button><button className={button} onClick={begin}>+ บันทึกนำเข้าสินค้า</button></div>
+   <section className="relative overflow-hidden rounded-2xl bg-linear-to-r from-[#1a3a6e] to-[#2d5aa8] p-5 text-white shadow-sm sm:p-6">
+    <div aria-hidden="true" className="pointer-events-none absolute -right-10 -top-16 h-52 w-52 rounded-full bg-white/10" />
+    <div aria-hidden="true" className="pointer-events-none absolute -bottom-20 right-40 h-40 w-40 rounded-full bg-white/5" />
+    <div className="relative flex flex-wrap items-start justify-between gap-5">
+     <div className="min-w-0 space-y-3">
+      <div className="flex items-center gap-3">
+       <span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-2xl">📋</span>
+       <div><h1 className="text-xl font-black leading-tight">นำเข้าสินค้า / รับเข้าคลัง</h1><p className="text-xs font-medium text-blue-100">จัดการใบนำเข้า (PO) และรับสินค้าเข้าคลังทีละขั้นตอน</p></div>
+      </div>
+      <ol aria-label="ขั้นตอนการทำงาน" className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
+       {steps.map((step, index) => <li key={step} className="flex items-center gap-1.5"><span className="flex items-center gap-1.5 rounded-full bg-white/15 py-1 pl-1 pr-3"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[11px] font-black text-[#1a3a6e]">{index + 1}</span>{step}</span>{index < steps.length - 1 && <span aria-hidden="true" className="text-blue-200">→</span>}</li>)}
+      </ol>
+     </div>
+     <div className="flex flex-wrap gap-2">
+      <a href="/admin/reports/purchase-orders" className="rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/20">📊 รายงาน PO</a>
+      <button className="rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/20 disabled:opacity-50" disabled={loading} onClick={() => { setError(''); setLoading(true); void load(); }}>🔄 รีเฟรช</button>
+      <button className="rounded-xl bg-white px-4 py-2.5 text-sm font-black text-[#1a3a6e] shadow-sm hover:bg-blue-50" onClick={begin}>+ บันทึกนำเข้าสินค้า</button>
+     </div>
+    </div>
    </section>
    {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
-   {notice && <div role="status" className="flex justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{notice}<button aria-label="ปิดข้อความ" onClick={() => setNotice('')}>×</button></div>}
-     <div className="grid gap-4 sm:grid-cols-3">{(['open','partial','received'] as const).map((status) => <div key={status} className="rounded-2xl border border-blue-100 bg-white p-5"><p className="text-sm font-bold text-blue-800">{statusText[status]}</p><p className="mt-2 text-3xl font-black text-[#1a3a6e]">{orders.filter((order) => order.status === status).length}</p></div>)}</div>
-     <section className="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
-      <div className="flex flex-wrap gap-3 border-b border-blue-100 p-4"><input aria-label="ค้นหา PO หรือแหล่งที่มา" placeholder="ค้นหาเลข PO / แหล่งที่มา..." value={search} onChange={(event) => setSearch(event.target.value)} className={input + ' sm:max-w-sm'} /><select aria-label="สถานะ PO" className={input + ' sm:max-w-48'} value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">ทุกสถานะ</option>{Object.entries(statusText).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
-      {loading ? <p className="p-10 text-center text-blue-800">กำลังโหลด...</p> : <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-blue-50 text-blue-800"><tr>{['เลข PO','แหล่งที่มา','วันที่เอกสาร','ผู้บันทึก','สถานะ',''].map((text, i) => <th key={i} className="p-4">{text}</th>)}</tr></thead><tbody className="divide-y divide-blue-50">{visible.map((order) => <tr key={order.id}><td className="p-4 font-bold">{order.po_number}</td><td className="p-4">{order.supplier}</td><td className="p-4">{dateText(order.order_date + 'T12:00:00+07:00')}</td><td className="p-4">{order.created_by}</td><td className="p-4"><span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800">{statusText[order.status]}</span></td><td className="p-4 text-right"><button className={secondary} onClick={() => void openOrder(order)}>{order.status === 'received' ? 'ดูประวัติ' : 'รับสินค้า →'}</button></td></tr>)}{!visible.length && <tr><td colSpan={6} className="p-12 text-center text-slate-400">ไม่พบ PO</td></tr>}</tbody></table></div>}
-      <p className="border-t border-blue-50 p-3 text-xs text-slate-400">แสดง PO ล่าสุดไม่เกิน 500 ใบ</p>
-     </section>
+   {notice && <div role="status" className="flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800"><span>✅ {notice}</span><button aria-label="ปิดข้อความ" className="h-7 w-7 rounded-full text-lg hover:bg-emerald-100" onClick={() => setNotice('')}>×</button></div>}
+   <div role="group" aria-label="กรอง PO ตามสถานะ" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    {([{ key: 'all', label: 'PO ทั้งหมด', icon: '🧾', hint: 'ล่าสุด 500 ใบ', accent: 'border-l-[#1a3a6e]' }, ...(['open', 'partial', 'received'] as const).map((key) => ({ key, label: statusText[key], icon: statusStyle[key].icon, hint: statusStyle[key].hint, accent: statusStyle[key].accent }))]).map((card) => {
+     const active = filter === card.key;
+     return <button key={card.key} type="button" aria-pressed={active} onClick={() => setFilter(card.key)} className={'rounded-2xl border border-l-4 bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-700 sm:p-5 ' + card.accent + ' ' + (active ? 'border-blue-300 ring-2 ring-[#1a3a6e]/70' : 'border-blue-100')}>
+      <span className="flex items-center justify-between text-sm font-bold text-slate-600">{card.label}<span aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-base">{card.icon}</span></span>
+      <span className="mt-2 block text-3xl font-black tabular-nums text-[#1a3a6e]">{counts[card.key as keyof typeof counts]}<span className="ml-1.5 text-sm font-semibold text-slate-400">ใบ</span></span>
+      <span className="mt-0.5 block text-xs font-medium text-slate-400">{card.hint}</span>
+     </button>;
+    })}
+   </div>
+   <section className="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
+    <div className="flex flex-wrap items-center gap-3 border-b border-blue-100 p-4">
+     <div className="relative w-full sm:max-w-sm"><span aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">🔍</span><input aria-label="ค้นหา PO หรือแหล่งที่มา" placeholder="ค้นหาเลข PO / แหล่งที่มา..." value={search} onChange={(event) => setSearch(event.target.value)} className={input + ' pl-10'} /></div>
+     <select aria-label="สถานะ PO" className={input + ' sm:max-w-48'} value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">ทุกสถานะ</option>{Object.entries(statusText).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+     <p className="ml-auto text-xs font-semibold text-slate-500">แสดง <b className="text-[#1a3a6e]">{visible.length}</b> จาก {orders.length} ใบ{hasFilter && <button type="button" className="ml-3 font-black text-blue-700 hover:underline" onClick={() => { setSearch(''); setFilter('all'); }}>ล้างตัวกรอง</button>}</p>
+    </div>
+    {loading ? <div aria-busy="true" role="status" className="space-y-px p-4">{[0, 1, 2, 3, 4].map((row) => <div key={row} className="h-14 animate-pulse rounded-lg bg-blue-50/60" />)}<span className="sr-only">กำลังโหลด...</span></div> : <div className="overflow-x-auto"><table className="w-full min-w-190 text-left text-sm"><thead className="border-b border-blue-100 bg-blue-50/70 text-xs font-bold text-blue-900"><tr>{['ลำดับ', 'เลข PO', 'แหล่งที่มา', 'วันที่เอกสาร', 'ผู้บันทึก', 'สถานะ', ''].map((text, i) => <th key={i} className={i === 0 ? 'w-16 px-4 py-3.5 text-center' : 'px-4 py-3.5'}>{text}</th>)}</tr></thead><tbody className="divide-y divide-blue-50">{visible.map((order, index) => <tr key={order.id} className="transition-colors hover:bg-blue-50/40">
+     <td className="px-4 py-4 text-center text-xs font-semibold tabular-nums text-slate-400">{index + 1}</td>
+     <td className="px-4 py-4 font-black text-[#1a3a6e]">{order.po_number}</td>
+     <td className="px-4 py-4 font-medium text-slate-700">{order.supplier}</td>
+     <td className="whitespace-nowrap px-4 py-4 tabular-nums text-slate-600">{dateText(order.order_date + 'T12:00:00+07:00')}</td>
+     <td className="px-4 py-4"><span className="flex items-center gap-2"><span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-black text-blue-800">{(order.created_by || '?').trim().slice(0, 1)}</span><span className="text-slate-700">{order.created_by}</span></span></td>
+     <td className="px-4 py-4"><StatusBadge status={order.status} /></td>
+     <td className="px-4 py-4 text-right">{order.status === 'received'
+      ? <button className="rounded-lg border border-blue-200 bg-white px-3.5 py-2 text-xs font-bold text-blue-900 hover:bg-blue-50" onClick={() => void openOrder(order)}>ดูประวัติ</button>
+      : <button className="rounded-lg bg-[#1a3a6e] px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-blue-800" onClick={() => void openOrder(order)}>รับสินค้า →</button>}</td>
+    </tr>)}{!visible.length && <tr><td colSpan={7} className="px-4 py-16 text-center"><span aria-hidden="true" className="text-4xl">📭</span><p className="mt-2 font-bold text-slate-500">{hasFilter ? 'ไม่พบ PO ตามเงื่อนไขที่เลือก' : 'ยังไม่มี PO'}</p><p className="mt-1 text-xs text-slate-400">{hasFilter ? 'ลองเปลี่ยนคำค้นหาหรือสถานะ' : 'กด “+ บันทึกนำเข้าสินค้า” เพื่อสร้าง PO ใบแรก'}</p></td></tr>}</tbody></table></div>}
+    <p className="border-t border-blue-50 bg-slate-50/50 px-4 py-3 text-xs text-slate-400">แสดง PO ล่าสุดไม่เกิน 500 ใบ</p>
+   </section>
   </div>
   {editing && <Modal title="บันทึกนำเข้าสินค้า (PO)" busy={busy} onClose={() => setEditing(false)} footer={<><span className="mr-auto text-sm font-bold text-blue-900">รวม {money(draftTotal)} ฿</span><button disabled={busy} className={secondary} onClick={() => setEditing(false)}>ยกเลิก</button><button disabled={busy} className={button} onClick={() => void saveOrder()}>{busy ? 'กำลังบันทึก...' : 'บันทึก PO'}</button></>} fillBody pinned={<>
    <fieldset disabled={busy} className="min-w-0 space-y-4">
@@ -232,9 +284,10 @@ export default function PurchaseOrdersPage() {
    </fieldset>
   </>}>
    <fieldset disabled={busy} className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-    <div data-po-lines role="region" aria-label="รายการสินค้าใน PO" tabIndex={0} className="min-h-0 flex-1 overflow-auto rounded-xl border border-blue-100"><table className="w-full min-w-[1100px] text-left text-sm"><thead className="sticky top-0 z-10 bg-blue-50 text-blue-800"><tr>{['สินค้าในคลัง','จำนวน','หน่วย','จำนวนใน 1 หน่วย','มูลค่า / หน่วย','รวม',''].map((label, i) => <th key={i} className="p-2">{label}</th>)}</tr></thead><tbody className="divide-y divide-blue-50">{drafts.map((line) => {
+    <div data-po-lines role="region" aria-label="รายการสินค้าใน PO" tabIndex={0} className="min-h-0 flex-1 overflow-auto rounded-xl border border-blue-100"><table className="w-full min-w-275 text-left text-sm"><thead className="sticky top-0 z-10 bg-blue-50 text-blue-800"><tr>{['ลำดับ','สินค้าในคลัง','จำนวน','หน่วย','จำนวนใน 1 หน่วย','มูลค่า / หน่วย','รวม',''].map((label, i) => <th key={i} className={i === 0 ? 'w-14 p-2 text-center' : 'p-2'}>{label}</th>)}</tr></thead><tbody className="divide-y divide-blue-50">{drafts.map((line, index) => {
      const item = items.find((row) => row.id === line.item_id);
      return <tr key={line.key} className="[&>td]:align-top [&_input]:h-11 [&_select]:h-11">
+      <td className="w-14 p-2 text-center"><span className="flex h-11 items-center justify-center text-xs font-semibold tabular-nums text-slate-400">{index + 1}</span></td>
       <td className="w-[34%] min-w-80 p-2"><POProductPicker items={items} value={line.item_id} disabled={busy} onChange={(item) => patch(line.key, { item_id: item.id, purchase_unit: line.purchase_unit || item.unit, units_per_pack: line.units_per_pack || '1' })} />{line.imported_code && <p className="mt-1 text-xs text-slate-500">รหัสจากไฟล์: {line.imported_code}</p>}{!item && <p className="text-xs text-red-600">กรุณาเลือกสินค้าให้ตรงกับรายการ</p>}</td>
       <td className="w-28 p-2"><input aria-label="จำนวน" type="number" min="1" step="1" className={input} value={line.quantity} onChange={(event) => patch(line.key, { quantity: event.target.value })} /></td>
       <td className="w-28 p-2"><input aria-label="หน่วย" className={input} value={line.purchase_unit} onChange={(event) => patch(line.key, { purchase_unit: event.target.value })} /></td>
@@ -243,15 +296,15 @@ export default function PurchaseOrdersPage() {
       <td className="whitespace-nowrap p-2 font-bold"><span className="flex h-11 items-center">{Number.isFinite(numberValue(line.quantity) * numberValue(line.unit_price)) ? money(numberValue(line.quantity) * numberValue(line.unit_price)) : '—'}</span></td>
       <td className="p-2"><button className="flex h-11 items-center px-2 text-red-600" aria-label="ลบรายการ" onClick={() => setDrafts((prev) => prev.filter((row) => row.key !== line.key))}>ลบ</button></td>
      </tr>;
-    })}{!drafts.length && <tr><td colSpan={7} className="p-10 text-center text-slate-400">เพิ่มรายการเองหรือนำเข้า Excel</td></tr>}</tbody></table></div>
+    })}{!drafts.length && <tr><td colSpan={8} className="p-10 text-center text-slate-400">เพิ่มรายการเองหรือนำเข้า Excel</td></tr>}</tbody></table></div>
     <p className="shrink-0 text-xs text-slate-500">ตัวอย่าง: นำเข้า 2 กล่อง กล่องละ 12 ชิ้น → รับครบจะเพิ่มคลัง 24 ชิ้น มูลค่าตามเอกสารนำเข้า แยกจากมูลค่าสินค้าที่ใช้ในใบเบิก</p>
    </fieldset>
   </Modal>}
   {selected && <Modal title={'รับสินค้า / ' + selected.po_number} busy={busy} onClose={() => { setSelected(null); setFormErrors([]); }} footer={<><button disabled={busy} className={secondary} onClick={() => { setSelected(null); setFormErrors([]); }}>ปิด</button>{selected.status !== 'received' && <button disabled={busy || detailLoading || !lines.length} className={button} onClick={() => void receive()}>{busy ? 'กำลังรับสินค้า...' : 'ยืนยันรับและเพิ่มคลัง'}</button>}</>}>
    {errorsView}
    {detailLoading ? <p className="p-10 text-center">กำลังโหลดรายการ...</p> : <fieldset disabled={busy} className="space-y-5">
-    <div className="rounded-xl bg-blue-50 p-4 text-sm"><p className="font-bold">{selected.supplier} · {statusText[selected.status]}</p><p className="mt-1 text-slate-500">วันที่เอกสาร {dateText(selected.order_date + 'T12:00:00+07:00')} · ผู้บันทึก {selected.created_by}</p>{selected.note && <p className="mt-1">{selected.note}</p>}</div>
-    <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left text-sm"><thead className="bg-blue-50 text-blue-800"><tr>{['สินค้า','ตามเอกสาร','รับแล้ว','ค้างรับ','รับครั้งนี้','เพิ่มคลัง'].map((label) => <th key={label} className="p-3">{label}</th>)}</tr></thead><tbody className="divide-y divide-blue-50">{lines.map((line) => <tr key={line.id}><td className="p-3"><p className="font-bold">{line.item_name}</p><p className="text-xs text-slate-500">{line.product_code} · 1 {line.purchase_unit} = {line.units_per_pack} {line.stock_unit}</p></td><td className="p-3">{line.ordered_quantity} {line.purchase_unit}</td><td className="p-3">{line.received_quantity}</td><td className="p-3 font-bold text-blue-800">{line.ordered_quantity - line.received_quantity}</td><td className="w-32 p-3"><input aria-label={'รับ ' + line.item_name} type="number" min="0" step="1" max={line.ordered_quantity-line.received_quantity} disabled={busy || line.ordered_quantity === line.received_quantity} className={input} value={quantities[line.id] ?? ''} placeholder="0" onChange={(event) => setQuantities((prev) => ({ ...prev, [line.id]: event.target.value }))} /></td><td className="p-3 text-xs">{Number.isFinite(numberValue(quantities[line.id] || '0')) ? numberValue(quantities[line.id] || '0') * line.units_per_pack : '—'} {line.stock_unit}</td></tr>)}</tbody></table></div>
+    <div className="rounded-xl bg-blue-50 p-4 text-sm"><p className="flex flex-wrap items-center gap-2 font-bold">{selected.supplier}<StatusBadge status={selected.status} /></p><p className="mt-1 text-slate-500">วันที่เอกสาร {dateText(selected.order_date + 'T12:00:00+07:00')} · ผู้บันทึก {selected.created_by}</p>{selected.note && <p className="mt-1">{selected.note}</p>}</div>
+    <div className="overflow-x-auto"><table className="w-full min-w-175 text-left text-sm"><thead className="bg-blue-50 text-blue-800"><tr>{['ลำดับ','สินค้า','ตามเอกสาร','รับแล้ว','ค้างรับ','รับครั้งนี้','เพิ่มคลัง'].map((label, i) => <th key={label} className={i === 0 ? 'w-14 p-3 text-center' : 'p-3'}>{label}</th>)}</tr></thead><tbody className="divide-y divide-blue-50">{lines.map((line, index) => <tr key={line.id}><td className="p-3 text-center text-xs font-semibold tabular-nums text-slate-400">{index + 1}</td><td className="p-3"><p className="font-bold">{line.item_name}</p><p className="text-xs text-slate-500">{line.product_code} · 1 {line.purchase_unit} = {line.units_per_pack} {line.stock_unit}</p></td><td className="p-3">{line.ordered_quantity} {line.purchase_unit}</td><td className="p-3">{line.received_quantity}</td><td className="p-3 font-bold text-blue-800">{line.ordered_quantity - line.received_quantity}</td><td className="w-32 p-3"><input aria-label={'รับ ' + line.item_name} type="number" min="0" step="1" max={line.ordered_quantity-line.received_quantity} disabled={busy || line.ordered_quantity === line.received_quantity} className={input} value={quantities[line.id] ?? ''} placeholder="0" onChange={(event) => setQuantities((prev) => ({ ...prev, [line.id]: event.target.value }))} /></td><td className="p-3 text-xs">{Number.isFinite(numberValue(quantities[line.id] || '0')) ? numberValue(quantities[line.id] || '0') * line.units_per_pack : '—'} {line.stock_unit}</td></tr>)}</tbody></table></div>
     {selected.status !== 'received' && <div className="grid gap-4 sm:grid-cols-2"><Field label="ชื่อผู้รับสินค้า *"><input className={input} value={receiver} onChange={(event) => setReceiver(event.target.value)} /></Field><Field label="หมายเหตุการรับ"><input className={input} value={receiptNote} onChange={(event) => setReceiptNote(event.target.value)} /></Field><p className="text-xs text-slate-500 sm:col-span-2">กรอกเฉพาะของที่ได้รับจริง รับบางส่วนได้ หากสินค้ายังไม่ระบุยอดคลัง ให้กรอกยอดเริ่มต้นในหน้าคลังก่อน</p></div>}
     <section className="space-y-3 border-t border-blue-100 pt-4"><h3 className="font-black text-[#1a3a6e]">ประวัติการรับสินค้า</h3>{receipts.map((receipt) => <div key={receipt.id} className="rounded-xl border border-blue-100 p-4 text-sm"><p className="font-bold">{dateText(receipt.created_at)} {new Date(receipt.created_at).toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit' })} · {receipt.received_by}</p>{receipt.note && <p className="text-slate-500">{receipt.note}</p>}<ul className="mt-2 space-y-1 text-xs text-slate-600">{receipt.purchase_receipt_lines.map((row) => { const line = lines.find((line) => line.id === row.purchase_order_line_id); return <li key={row.purchase_order_line_id}>{line?.item_name}: รับ {row.quantity} {line?.purchase_unit} → เพิ่มคลัง {row.stock_added} {line?.stock_unit}</li>; })}</ul></div>)}{!receipts.length && <p className="text-sm text-slate-400">ยังไม่มีประวัติรับสินค้า</p>}</section>
    </fieldset>}

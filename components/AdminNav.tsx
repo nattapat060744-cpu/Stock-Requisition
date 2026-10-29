@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import {usePathname} from 'next/navigation';
-import {useNewRequisitions} from '@/hooks/useNewRequisitions';
+import {useNewRequisitions,REQUISITIONS_RELOAD_EVENT} from '@/hooks/useNewRequisitions';
 import styles from '@/components/adminNavigation.module.css';
 type IconName='dashboard'|'request'|'report'|'inventory'|'import'|'department'|'account'|'external'|'logout';
 function Icon({name}:{name:IconName}){
@@ -22,15 +22,20 @@ function Icon({name}:{name:IconName}){
 const TABS:{href:string;label:string;icon:IconName;badge?:boolean}[]=[
  {href:'/admin/dashboard',label:'แดชบอร์ด',icon:'dashboard'},
  {href:'/admin/requisitions',label:'ใบเบิก',icon:'request',badge:true},
- {href:'/admin/reports',label:'รายงาน',icon:'report'},
  {href:'/admin/inventory',label:'คลังสินค้า',icon:'inventory'},
  {href:'/admin/purchase-orders',label:'นำเข้า (PO)',icon:'import'},
+ {href:'/admin/reports',label:'รายงาน',icon:'report'},
  {href:'/admin/zones',label:'แผนก / โซน',icon:'department'},
 ];
 type Props={activeHref?:string;accountLabel?:string;onLogout?:()=>void};
-export default function AdminNav(props:Props){const {newCount}=useNewRequisitions();return <AdminNavView {...props} newCount={newCount}/>;}
+export default function AdminNav(props:Props){
+ const {newCount}=useNewRequisitions();const pathname=usePathname();
+ // กดแท็บ "ใบเบิก" ขณะอยู่หน้านั้นอยู่แล้ว → สั่งให้หน้าโหลดรายการใหม่ (ถ้าเดินมาจากหน้าอื่น หน้าใบเบิกจะเคลียร์เองตอนเปิด)
+ const onRequisitionsClick=()=>{if(pathname.endsWith('/admin/requisitions'))window.dispatchEvent(new Event(REQUISITIONS_RELOAD_EVENT));};
+ return <AdminNavView {...props} newCount={newCount} onRequisitionsClick={onRequisitionsClick}/>;
+}
 export function AdminNavView({activeHref,accountLabel,onLogout,newCount,onRequisitionsClick}:Props&{newCount:number;onRequisitionsClick?:()=>void}){
  const pathname=usePathname();const start=pathname.indexOf('/admin');const path=start>=0?pathname.slice(start):pathname;
  const active=activeHref||(path.startsWith('/admin/stocktake')?'/admin/inventory':path.startsWith('/admin/history')||path.startsWith('/admin/reports')?'/admin/reports':path);
- return <header className={styles.header}><div className={styles.inner}><div className={styles.top}><Link href="/admin/dashboard" className={styles.brand}><Image src="/Logo.png" alt="สำเพ็ง บุรีรัมย์" width={52} height={52} className={styles.logo}/><span><span className={styles.wordmark}>สำเพ็ง บุรีรัมย์</span><span className={styles.tagline}>ระบบจัดการเบิกสินค้า</span></span></Link><div className={styles.actions}>{accountLabel&&<div className={styles.identity}><span className={styles.avatar}><Icon name="account"/></span><span><span className={styles.caption}>ผู้ใช้งานระบบ</span><span className={styles.name}>{accountLabel}</span></span></div>}<Link href="/requisition" className={styles.shortcut}>หน้าเบิกสินค้า<Icon name="external"/></Link>{onLogout&&<button type="button" onClick={onLogout} className={styles.logout}><Icon name="logout"/>ออกจากระบบ</button>}</div></div><nav aria-label="เมนูหลักหลังบ้าน" className={styles.nav}>{TABS.map(tab=>{const selected=active===tab.href;return <Link key={tab.href} href={tab.href} aria-current={selected?'page':undefined} onClick={tab.badge?onRequisitionsClick:undefined} className={styles.tab+(selected?' '+styles.active:'')}><span className={styles.icon}><Icon name={tab.icon}/></span>{tab.label}{tab.badge&&newCount>0&&<span aria-label={'มีใบเบิกใหม่ '+newCount+' รายการ'} className={styles.notify}/>}</Link>;})}</nav></div></header>;
+ return <header className={styles.header}><div className={styles.inner}><div className={styles.top}><Link href="/admin/dashboard" className={styles.brand}><Image src="/Logo.png" alt="สำเพ็ง บุรีรัมย์" width={52} height={52} className={styles.logo}/><span><span className={styles.wordmark}>สำเพ็ง บุรีรัมย์ เจริญการค้า</span><span className={styles.tagline}>ระบบจัดการเบิกสินค้า</span></span></Link><div className={styles.actions}>{accountLabel&&<div className={styles.identity}><span className={styles.avatar}><Icon name="account"/></span><span><span className={styles.caption}>ผู้ใช้งานระบบ</span><span className={styles.name}>{accountLabel}</span></span></div>}<Link href="/requisition" className={styles.shortcut}>หน้าเบิกสินค้า<Icon name="external"/></Link>{onLogout&&<button type="button" onClick={onLogout} className={styles.logout}><Icon name="logout"/>ออกจากระบบ</button>}</div></div><nav aria-label="เมนูหลักหลังบ้าน" className={styles.nav}>{TABS.map(tab=>{const selected=active===tab.href;return <Link key={tab.href} href={tab.href} aria-current={selected?'page':undefined} onClick={tab.badge?onRequisitionsClick:undefined} className={styles.tab+(selected?' '+styles.active:'')}><span className={styles.icon}><Icon name={tab.icon}/></span>{tab.label}{tab.badge&&newCount>0&&<span role="img" aria-label={'มีใบเบิกใหม่ '+newCount+' รายการ'} className={styles.notify}/>}</Link>;})}</nav></div></header>;
 }

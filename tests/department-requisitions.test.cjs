@@ -202,5 +202,20 @@ test('department requests: database transactions and access',async t=>{
    const codes=(await db.query('SELECT * FROM get_department_codes($1)',[master.token])).rows;assert.equal(codes.find(row=>row.branch_id===a).department_code,'Viewable-Department-A');
   }finally{await db.exec('RESET ROLE');}
  });
+ await t.test('audit db_role repair restores saving requests and retains audit records',async()=>{
+  await db.exec(`CREATE TABLE public.audit_log(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, action text); INSERT INTO audit_log(action) VALUES('existing');
+   CREATE FUNCTION public.test_request_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN INSERT INTO public.audit_log(action,db_role) VALUES(TG_OP,current_user); RETURN NEW; END $$;
+   CREATE TRIGGER test_request_audit AFTER INSERT ON public.requisitions FOR EACH ROW EXECUTE FUNCTION public.test_request_audit();`);
+  const session=await rpc('department_login',['Viewable-Department-A']);
+  const requestId=uuid();
+  await reject(save(session.token,requestId,null),/db_role/);
+  assert.equal((await db.query('SELECT count(*)::int AS n FROM requisitions WHERE id=$1',[requestId])).rows[0].n,0);
+  const repair=fs.readFileSync(path.join(__dirname,'../supabase/migrations/202610290002_repair_audit_log_db_role.sql'),'utf8');
+  await db.exec(repair);await db.exec(repair);
+  await save(session.token,requestId,null);
+  assert.equal((await rpc('department_requisition',[session.token,requestId])).id,requestId);
+  const rows=(await db.query('SELECT action,db_role FROM audit_log ORDER BY id')).rows;
+  assert.equal(rows[0].action,'existing');assert.equal(rows[0].db_role,null);assert.equal(rows[1].action,'INSERT');assert(rows[1].db_role);
+ });
  }finally{await db.close();}
 });

@@ -3,12 +3,13 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import RequestedItems from '@/components/RequestedItems';
-import {requestError,validRequestLines} from '@/lib/requisitionRules';
-import { useNewRequisitions } from '@/hooks/useNewRequisitions';
+import { requestError, validRequestLines } from '@/lib/requisitionRules';
+import { useNewRequisitions, REQUISITIONS_RELOAD_EVENT } from '@/hooks/useNewRequisitions';
+import { ui, PageHero, StatCard, SearchBox, EmptyState, Skeleton, Notice, Modal } from '@/components/AdminUI';
 
 interface Requisition {
   id: string;
-  version:number;note?:string;admin_note?:string;requested_items?:RequisitionDetail[];
+  version: number; note?: string; admin_note?: string; requested_items?: RequisitionDetail[];
   created_at: string;
   branch_name: string;
   requester_name: string;
@@ -40,29 +41,42 @@ interface MasterItem {
 }
 
 const PAGE_SIZE = 20;
+const OPENED_KEY = 'admin_requisitions_opened_ids';   // ใบที่เปิดดูแล้วบนเบราว์เซอร์นี้ (เก็บล่าสุด 300 ใบ)
+const BASELINE_KEY = 'admin_requisitions_new_baseline'; // ใบที่เข้ามาหลังเวลานี้ และยังไม่เปิดดู = "ใหม่"
+
+const statusStyle = {
+  pending: { badge: 'border-amber-200 bg-amber-50 text-amber-800', dot: 'bg-amber-500 animate-pulse', text: 'รออนุมัติ' },
+  approved: { badge: 'border-emerald-200 bg-emerald-50 text-emerald-800', dot: 'bg-emerald-500', text: 'อนุมัติแล้ว' },
+  rejected: { badge: 'border-red-200 bg-red-50 text-red-700', dot: 'bg-red-500', text: 'ปฏิเสธ' },
+} as const;
+
+function StatusBadge({ status }: { status: string }) {
+  const style = statusStyle[(status in statusStyle ? status : 'pending') as keyof typeof statusStyle];
+  return <span className={'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ' + style.badge}><span aria-hidden="true" className={'h-1.5 w-1.5 rounded-full ' + style.dot} />{style.text}</span>;
+}
 
 export default function AdminRequisitionsPage() {
-  const [requisitions, setRequisitions]      = useState<Requisition[]>([]);
-  const [loading, setLoading]              = useState(true);
-  const [selectedReq, setSelectedReq]      = useState<Requisition | null>(null);
-  const [details, setDetails]              = useState<RequisitionDetail[]>([]);
-  const [originalDetails,setOriginalDetails]=useState<RequisitionDetail[]>([]);
-  const [adminNote,setAdminNote]=useState('');
-  const [saving,setSaving]=useState(false);
-  const [detailError,setDetailError]=useState('');
-  const reviewBusy=useRef(false);
-  const detailRequest=useRef(0);
-  const listRequest=useRef(0);
+  const [requisitions, setRequisitions] = useState<Requisition[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedReq, setSelectedReq] = useState<Requisition | null>(null);
+  const [details, setDetails] = useState<RequisitionDetail[]>([]);
+  const [originalDetails, setOriginalDetails] = useState<RequisitionDetail[]>([]);
+  const [adminNote, setAdminNote] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [detailError, setDetailError] = useState('');
+  const reviewBusy = useRef(false);
+  const detailRequest = useRef(0);
+  const listRequest = useRef(0);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [modalMode, setModalMode]          = useState<'review' | 'view'>('review');
+  const [modalMode, setModalMode] = useState<'review' | 'view'>('review');
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
   const imageDialogRef = useRef<HTMLDialogElement>(null);
 
   // State สำหรับ Pop-up ค้นหาและเปลี่ยนสินค้า
   const [itemSelectorOpen, setItemSelectorOpen] = useState(false);
-  const [activeDetailId, setActiveDetailId]     = useState<string | null>(null);
-  const [itemSearchTerm, setItemSearchTerm]     = useState('');
-  const [allItems, setAllItems]                 = useState<MasterItem[]>([]);
+  const [activeDetailId, setActiveDetailId] = useState<string | null>(null);
+  const [itemSearchTerm, setItemSearchTerm] = useState('');
+  const [allItems, setAllItems] = useState<MasterItem[]>([]);
 
   useEffect(() => {
     if (selectedImage && imageDialogRef.current && !imageDialogRef.current.open) {
@@ -70,18 +84,19 @@ export default function AdminRequisitionsPage() {
     }
   }, [selectedImage]);
 
-  const [filterStatus, setFilterStatus]    = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
-  const [searchTerm, setSearchTerm]        = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const [currentPage, setCurrentPage]   = useState(1);
-  const [totalCount, setTotalCount]     = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
-  const [pendingCount, setPendingCount]   = useState(0);
-  const [approvedCount, setApprovedCount] = useState(0);
-  const [rejectedCount, setRejectedCount] = useState(0);
+  // null = ยังโหลดไม่ได้ → โชว์ "—" ไม่โชว์ 0 หลอก
+  const [pendingCount, setPendingCount] = useState<number | null>(null);
+  const [approvedCount, setApprovedCount] = useState<number | null>(null);
+  const [rejectedCount, setRejectedCount] = useState<number | null>(null);
 
   const [zoneBranches, setZoneBranches] = useState<string[]>([]);
-  
+
   useEffect(() => {
     let alive = true;
     void Promise.all([
@@ -109,7 +124,6 @@ export default function AdminRequisitionsPage() {
 
   const { newCount, markSeen } = useNewRequisitions();
   const [newSince, setNewSince] = useState<string | null>(null);
-  const newSinceRef = useRef<string | null>(null);
   const [openedIds, setOpenedIds] = useState<Set<string>>(() => new Set());
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -120,16 +134,17 @@ export default function AdminRequisitionsPage() {
       supabase.from('requisitions').select('id', { count: 'exact', head: true }).eq('status', 'approved'),
       supabase.from('requisitions').select('id', { count: 'exact', head: true }).eq('status', 'rejected'),
     ]);
+    if (p.error || a.error || r.error) return; // โหลดตัวเลขไม่สำเร็จ → คงค่าเดิมไว้ ไม่ให้โชว์ 0 หลอก
     setPendingCount(p.count ?? 0);
     setApprovedCount(a.count ?? 0);
     setRejectedCount(r.count ?? 0);
   }
 
-  const fetchRequisitions = useCallback(async (page = currentPage) => {
-    const sequence=++listRequest.current;
-    setLoading(true);
+  const fetchRequisitions = useCallback(async (page = currentPage, silent = false) => {
+    const sequence = ++listRequest.current;
+    if (!silent) setLoading(true); // silent = โหลดทับเงียบ ๆ ไม่เด้งหน้าหมุน
     const from = (page - 1) * PAGE_SIZE;
-    const to   = from + PAGE_SIZE - 1;
+    const to = from + PAGE_SIZE - 1;
 
     let query = supabase
       .from('requisitions')
@@ -146,7 +161,7 @@ export default function AdminRequisitionsPage() {
     }
 
     const { data, count, error } = await query;
-    if(sequence!==listRequest.current)return;
+    if (sequence !== listRequest.current) return;
     if (error) console.error('Error fetching requisitions:', error);
     setRequisitions(data ?? []);
     setTotalCount(count ?? 0);
@@ -154,31 +169,60 @@ export default function AdminRequisitionsPage() {
   }, [currentPage, filterStatus, searchTerm]);
 
   useEffect(() => {
-    let alive=true;
-    void Promise.resolve().then(()=>{if(alive)return fetchRequisitions(currentPage);});
-    return()=>{alive=false;listRequest.current++;};
+    let alive = true;
+    void Promise.resolve().then(() => { if (alive) return fetchRequisitions(currentPage); });
+    return () => { alive = false; listRequest.current++; };
   }, [currentPage, fetchRequisitions]);
 
-  useEffect(() => { void Promise.resolve().then(()=>fetchCounts()); }, []);
+  useEffect(() => { void Promise.resolve().then(() => fetchCounts()); }, []);
 
   useEffect(() => {
-    if (newSinceRef.current === null) {
-      let previousSeen = '1970-01-01T00:00:00.000Z';
-      try {
-        const saved = localStorage.getItem('admin_requisitions_last_seen');
-        if (saved && !Number.isNaN(Date.parse(saved))) previousSeen = saved;
-      } catch {
-        // Fallback
-      }
-      newSinceRef.current = previousSeen;
-      setNewSince(previousSeen);
+    let alive = true;
+    try {
+      const raw = localStorage.getItem(OPENED_KEY);
+      const ids: unknown = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(ids)) setOpenedIds(new Set(ids.filter((id): id is string => typeof id === 'string')));
+    } catch {
+      // อ่านไม่ได้ → เริ่มใหม่
     }
-    markSeen();
+    let saved: string | null = null;
+    try {
+      const value = localStorage.getItem(BASELINE_KEY);
+      if (value && !Number.isNaN(Date.parse(value))) saved = value;
+    } catch {
+      // ใช้ค่าจากเซิร์ฟเวอร์ด้านล่างแทน
+    }
+    if (saved) {
+      setNewSince(saved);
+    } else {
+      // ใช้เบราว์เซอร์นี้ครั้งแรก → เริ่มนับจากใบล่าสุดตามเวลาเซิร์ฟเวอร์ ไม่ถือว่าใบเก่าทั้งหมดเป็น "ใหม่"
+      void supabase.from('requisitions').select('created_at').order('created_at', { ascending: false }).limit(1)
+        .then(({ data, error }) => {
+          if (!alive) return;
+          const base = error ? new Date().toISOString() : (data?.[0]?.created_at ?? '1970-01-01T00:00:00.000Z');
+          try { localStorage.setItem(BASELINE_KEY, base); } catch { /* ใช้ได้ภายในเซสชันนี้ */ }
+          setNewSince(base);
+        });
+    }
+    void markSeen();
+    return () => { alive = false; };
   }, [markSeen]);
 
   useEffect(() => {
-    if (newCount > 0) void Promise.resolve().then(()=>fetchCounts());
+    if (newCount > 0) void Promise.resolve().then(() => fetchCounts());
   }, [newCount]);
+
+  // โหลดใบใหม่เองเมื่ออยู่หน้าแรก ไม่ได้ค้นหา/กรองจนทำให้ใบใหม่ไม่ตรงเงื่อนไข และไม่ได้เปิดหน้าต่างใด ๆ ค้างอยู่
+  // ถ้าเงื่อนไขไม่ครบ ปุ่มรีเฟรชด้านบนยังให้กดโหลดเองได้ และจะโหลดให้ทันทีเมื่อปิดหน้าต่างนั้น
+  const canAutoLoad = currentPage === 1 && !searchTerm.trim() && (filterStatus === 'all' || filterStatus === 'pending')
+    && !selectedReq && !itemSelectorOpen && !selectedImage;
+  useEffect(() => {
+    if (newCount > 0 && canAutoLoad) {
+      void markSeen();
+      void fetchRequisitions(1, true);
+      void fetchCounts();
+    }
+  }, [newCount, canAutoLoad, fetchRequisitions, markSeen]);
 
   const handleSeeNew = () => {
     markSeen();
@@ -189,6 +233,13 @@ export default function AdminRequisitionsPage() {
     }
     fetchCounts();
   };
+
+  // เมนูยิงอีเวนต์นี้เมื่อกดแท็บ "ใบเบิก" ขณะอยู่หน้านี้แล้ว → โหลดรายการใหม่ + เคลียร์จุดแดง
+  useEffect(() => {
+    const onReload = () => handleSeeNew();
+    window.addEventListener(REQUISITIONS_RELOAD_EVENT, onReload);
+    return () => window.removeEventListener(REQUISITIONS_RELOAD_EVENT, onReload);
+  });
 
   const handleFilterChange = (s: typeof filterStatus) => {
     setFilterStatus(s);
@@ -208,15 +259,22 @@ export default function AdminRequisitionsPage() {
     return groups;
   }, {} as Record<string, Requisition[]>);
 
+  const rememberOpened = (id: string) => {
+    if (openedIds.has(id)) return;
+    const next = new Set(openedIds).add(id);
+    setOpenedIds(next);
+    try { localStorage.setItem(OPENED_KEY, JSON.stringify([...next].slice(-300))); } catch { /* จำได้เฉพาะเซสชันนี้ */ }
+  };
+
   const handleViewDetails = async (req: Requisition, mode: 'review' | 'view') => {
-    if(reviewBusy.current)return;
-    const sequence=++detailRequest.current;
-    setOpenedIds(ids=>new Set(ids).add(req.id));setSelectedReq(req);setModalMode(mode==='review'&&req.status==='pending'?'review':'view');
-    setLoadingDetails(true);setDetailError('');setDetails([]);setOriginalDetails([]);setAdminNote('');
-    const {data,error}=await supabase.from('requisitions').select('*,requisition_details(id,item_id,quantity,price_at_time,items(id,name,unit,price,image_url))').eq('id',req.id).single();
-    if(sequence!==detailRequest.current)return;
-    if(error||!data){setDetailError(requestError(error));}
-    else {setSelectedReq(data);setAdminNote(data.admin_note||'');setModalMode(mode==='review'&&data.status==='pending'?'review':'view');const rows=data.requisition_details as unknown as RequisitionDetail[];setDetails(rows);setOriginalDetails(rows);}
+    if (reviewBusy.current) return;
+    const sequence = ++detailRequest.current;
+    rememberOpened(req.id); setSelectedReq(req); setModalMode(mode === 'review' && req.status === 'pending' ? 'review' : 'view');
+    setLoadingDetails(true); setDetailError(''); setDetails([]); setOriginalDetails([]); setAdminNote('');
+    const { data, error } = await supabase.from('requisitions').select('*,requisition_details(id,item_id,quantity,price_at_time,items(id,name,unit,price,image_url))').eq('id', req.id).single();
+    if (sequence !== detailRequest.current) return;
+    if (error || !data) { setDetailError(requestError(error)); }
+    else { setSelectedReq(data); setAdminNote(data.admin_note || ''); setModalMode(mode === 'review' && data.status === 'pending' ? 'review' : 'view'); const rows = data.requisition_details as unknown as RequisitionDetail[]; setDetails(rows); setOriginalDetails(rows); }
     setLoadingDetails(false);
   };
 
@@ -228,7 +286,7 @@ export default function AdminRequisitionsPage() {
       return {
         ...d,
         item_id: newItem.id,
-        price_at_time: originalDetails.find(line=>line.item_id===newItem.id)?.price_at_time ?? newItem.price ?? d.price_at_time,
+        price_at_time: originalDetails.find(line => line.item_id === newItem.id)?.price_at_time ?? newItem.price ?? d.price_at_time,
         items: {
           id: newItem.id,
           name: newItem.name,
@@ -244,7 +302,7 @@ export default function AdminRequisitionsPage() {
   };
 
   const handleDetailChange = (detailId: string, value: string) => {
-    if(reviewBusy.current)return;
+    if (reviewBusy.current) return;
     setDetails(prev => prev.map(d => {
       if (d.id !== detailId) return d;
       return { ...d, quantity: Math.max(1, Number(value)) };
@@ -252,22 +310,22 @@ export default function AdminRequisitionsPage() {
   };
 
   const handleDeleteDetail = (detailId: string) => {
-    if(reviewBusy.current)return;
+    if (reviewBusy.current) return;
     if (!window.confirm('ตัดรายการนี้ออกจากการอนุมัติ? ยังเก็บรายการที่ขอไว้ในประวัติ')) return;
     setDetails(prev => prev.filter(d => d.id !== detailId));
   };
 
-  const submitReview = async (status:'approved'|'rejected') => {
-    if(reviewBusy.current||loadingDetails||detailError||!selectedReq)return;
-    const lines=details.map(d=>({item_id:d.item_id||d.items?.id||'',quantity:d.quantity}));
-    if(status==='approved'&&!validRequestLines(lines)){alert('ต้องมีสินค้าอย่างน้อย 1 รายการ จำนวนเต็มบวก และไม่มีรายการซ้ำ หากไม่ให้เบิกทั้งหมดให้กดปฏิเสธใบเบิก');return;}
-    if(!window.confirm(status==='approved'?'ยืนยันอนุมัติรายการที่เหลือ พร้อมบันทึกผลตรวจสอบ?':'ยืนยันปฏิเสธใบเบิกนี้?'))return;
-    reviewBusy.current=true;setSaving(true);
+  const submitReview = async (status: 'approved' | 'rejected') => {
+    if (reviewBusy.current || loadingDetails || detailError || !selectedReq) return;
+    const lines = details.map(d => ({ item_id: d.item_id || d.items?.id || '', quantity: d.quantity }));
+    if (status === 'approved' && !validRequestLines(lines)) { alert('ต้องมีสินค้าอย่างน้อย 1 รายการ จำนวนเต็มบวก และไม่มีรายการซ้ำ หากไม่ให้เบิกทั้งหมดให้กดปฏิเสธใบเบิก'); return; }
+    if (!window.confirm(status === 'approved' ? 'ยืนยันอนุมัติรายการที่เหลือ พร้อมบันทึกผลตรวจสอบ?' : 'ยืนยันปฏิเสธใบเบิกนี้?')) return;
+    reviewBusy.current = true; setSaving(true);
     try {
-      const {error}=await supabase.rpc('review_requisition',{p_id:selectedReq.id,p_version:selectedReq.version,p_status:status,p_admin_note:adminNote,p_lines:lines});
-      if(error)throw error;
-      setSelectedReq(null);await Promise.all([fetchRequisitions(currentPage),fetchCounts()]);
-    }catch(error){alert(requestError(error));}finally{setSaving(false);reviewBusy.current=false;}
+      const { error } = await supabase.rpc('review_requisition', { p_id: selectedReq.id, p_version: selectedReq.version, p_status: status, p_admin_note: adminNote, p_lines: lines });
+      if (error) throw error;
+      setSelectedReq(null); await Promise.all([fetchRequisitions(currentPage), fetchCounts()]);
+    } catch (error) { alert(requestError(error)); } finally { setSaving(false); reviewBusy.current = false; }
   };
 
   const goToPage = (p: number) => {
@@ -288,151 +346,101 @@ export default function AdminRequisitionsPage() {
     return pages;
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'approved':
-        return (
-          <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-2.5 py-0.5 rounded-full text-xs font-bold border border-emerald-100">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />อนุมัติแล้ว
-          </span>
-        );
-      case 'rejected':
-        return (
-          <span className="inline-flex items-center gap-1.5 bg-red-50 text-red-500 px-2.5 py-0.5 rounded-full text-xs font-bold border border-red-100">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-400" />ปฏิเสธ
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-500 px-2.5 py-0.5 rounded-full text-xs font-bold border border-amber-100">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />รออนุมัติ
-          </span>
-        );
-    }
-  };
-
-  const filteredMasterItems = allItems.filter(item => 
+  const filteredMasterItems = allItems.filter(item =>
     item.name.toLowerCase().includes(itemSearchTerm.toLowerCase())
   );
 
+  const hasFilter = searchTerm.trim() !== '' || filterStatus !== 'all';
+  const closeReview = () => { detailRequest.current++; setSelectedReq(null); };
+  const cards = [
+    { key: 'pending', label: 'รออนุมัติ', icon: '⏳', accent: 'amber', value: pendingCount, hint: 'รอตรวจสอบ' },
+    { key: 'approved', label: 'อนุมัติแล้ว', icon: '✅', accent: 'emerald', value: approvedCount, hint: 'ปิดรายการแล้ว' },
+    { key: 'rejected', label: 'ปฏิเสธ', icon: '🚫', accent: 'red', value: rejectedCount, hint: 'ไม่อนุมัติ' },
+  ] as const;
+
   return (
-    <div className="min-h-screen bg-[#e8edf5] py-6 sm:py-8 px-3 sm:px-6 lg:px-8 text-slate-800">
-      <div className="max-w-6xl mx-auto space-y-5">
+    <div className={ui.page}>
+      <div className={ui.wrap}>
 
+        <PageHero icon="📝" title="จัดการใบเบิกสินค้า" subtitle="ตรวจสอบและอนุมัติใบเบิกจากแต่ละแผนก"
+          actions={<button onClick={handleSeeNew} className={newCount > 0 ? ui.heroPrimary : ui.heroBtn}>
+            🔄 {newCount > 0 ? `มีใบเบิกใหม่ ${newCount} ใบ · กดเพื่อดู` : 'รีเฟรช'}
+          </button>} />
 
-        <div className="bg-white p-5 rounded-2xl shadow-sm shadow-blue-100/50 border border-blue-100 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-xl font-black text-slate-800 tracking-tight">📝 จัดการใบเบิกสินค้า</h1>
-              <p className="text-xs font-semibold text-blue-700 mt-1 uppercase tracking-widest">ตรวจสอบและอนุมัติ</p>
-            </div>
-            <button
-              onClick={handleSeeNew}
-              className="inline-flex items-center gap-2 bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-100 px-4 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95"
-            >
-              🔄 รีเฟรช
-            </button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-center">
-              <p className="text-2xl font-black text-amber-600">{pendingCount}</p>
-              <p className="text-xs font-bold text-amber-400 mt-0.5">รออนุมัติ</p>
-            </div>
-            <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 text-center">
-              <p className="text-2xl font-black text-emerald-600">{approvedCount}</p>
-              <p className="text-xs font-bold text-emerald-400 mt-0.5">อนุมัติแล้ว</p>
-            </div>
-            <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-center">
-              <p className="text-2xl font-black text-red-500">{rejectedCount}</p>
-              <p className="text-xs font-bold text-red-300 mt-0.5">ปฏิเสธ</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <input
-              type="text"
-              placeholder="🔍 ค้นหาแผนกหรือชื่อผู้เบิก..."
-              value={searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="flex-1 h-10 px-4 border border-blue-100 rounded-xl bg-blue-50/50 text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all placeholder:text-slate-400"
-            />
-            <div className="flex items-center gap-1 bg-blue-50 p-1 rounded-xl border border-blue-100 shrink-0">
-              {(['all', 'pending', 'approved', 'rejected'] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => handleFilterChange(s)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                    filterStatus === s
-                      ? 'bg-white text-blue-900 shadow-sm shadow-blue-100'
-                      : 'text-slate-500 hover:text-blue-800'
-                  }`}
-                >
-                  {s === 'all' ? 'ทั้งหมด' : s === 'pending' ? 'รออนุมัติ' : s === 'approved' ? 'อนุมัติแล้ว' : 'ปฏิเสธ'}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div role="group" aria-label="กรองใบเบิกตามสถานะ" className="grid grid-cols-3 gap-3">
+          {cards.map((card) => (
+            <StatCard key={card.key} label={card.label} icon={card.icon} accent={card.accent} hint={card.hint}
+              value={card.value ?? '—'} unit="ใบ" active={filterStatus === card.key}
+              onClick={() => handleFilterChange(filterStatus === card.key ? 'all' : card.key)} />
+          ))}
         </div>
 
+        <section className={ui.card + ' flex flex-wrap items-center gap-3 p-4'}>
+          <SearchBox label="ค้นหาแผนกหรือชื่อผู้เบิก" placeholder="ค้นหาแผนก / ชื่อผู้เบิก..." value={searchTerm} onChange={handleSearchChange} />
+          <select aria-label="สถานะใบเบิก" value={filterStatus} onChange={(e) => handleFilterChange(e.target.value as typeof filterStatus)} className={ui.input + ' sm:max-w-48'}>
+            <option value="all">ทุกสถานะ</option>
+            <option value="pending">รออนุมัติ</option>
+            <option value="approved">อนุมัติแล้ว</option>
+            <option value="rejected">ปฏิเสธ</option>
+          </select>
+          <p className="ml-auto text-xs font-semibold text-slate-500">พบ <b className="text-[#1a3a6e]">{totalCount.toLocaleString('th-TH')}</b> ใบ{hasFilter && <button type="button" className="ml-3 font-black text-blue-700 hover:underline" onClick={() => { setSearchTerm(''); handleFilterChange('all'); }}>ล้างตัวกรอง</button>}</p>
+        </section>
+
         {loading ? (
-          <div className="flex flex-col items-center gap-3 py-20 bg-white rounded-2xl border border-blue-100">
-            <div className="w-10 h-10 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin" />
-            <p className="text-blue-700 font-bold text-sm">กำลังโหลดข้อมูล...</p>
-          </div>
+          <section className={ui.card}><Skeleton rows={6} /></section>
         ) : Object.keys(groupedRequisitions).length === 0 ? (
-          <div className="py-20 text-center bg-white rounded-2xl border border-blue-100">
-            <p className="text-blue-400 font-bold text-base">ไม่พบใบเบิกในเงื่อนไขที่เลือก</p>
-          </div>
+          <section className={ui.card}><EmptyState icon="📭" title="ไม่พบใบเบิกในเงื่อนไขที่เลือก" hint={hasFilter ? 'ลองเปลี่ยนคำค้นหาหรือสถานะ' : 'ยังไม่มีใบเบิกในระบบ'} /></section>
         ) : (
           <>
             {Object.entries(groupedRequisitions).map(([date, reqs]) => (
-              <div key={date} className="bg-white rounded-2xl shadow-sm shadow-blue-100/50 border border-blue-100 overflow-hidden">
-                <div className="px-5 py-3 bg-linear-to-r from-blue-50 to-blue-50/50 border-b border-blue-100 flex items-center gap-2">
-                  <span className="text-blue-400">🗓️</span>
-                  <span className="text-blue-800 font-black text-sm uppercase tracking-wider">{date}</span>
-                  <span className="ml-auto text-xs font-bold text-blue-400">{reqs.length} รายการ</span>
+              <section key={date} className={ui.card}>
+                <div className="flex items-center gap-2 border-b border-blue-100 bg-blue-50/70 px-5 py-3">
+                  <span aria-hidden="true">🗓️</span>
+                  <h2 className="text-sm font-black text-[#1a3a6e]">{date}</h2>
+                  <span className="ml-auto text-xs font-bold text-slate-500">{reqs.length} รายการ</span>
                 </div>
                 <div className="overflow-x-auto">
-                  {/* ปรับสัดส่วนคอลัมน์ใหม่ ไม่ล้นจอ */}
-                  <table className="w-full table-fixed text-left text-sm">
+                  <table className="w-full min-w-215 table-fixed text-left text-sm">
                     <colgroup>
-                      <col className="w-16"/>
-                      <col className="w-[20%]"/>
-                      <col className="w-[22%]"/>
-                      <col className="w-[26%]"/>
-                      <col className="w-28"/>
-                      <col className="w-36"/>
+                      <col className="w-20" />
+                      <col className="w-[20%]" />
+                      <col className="w-[22%]" />
+                      <col className="w-[24%]" />
+                      <col className="w-36" />
+                      <col className="w-36" />
                     </colgroup>
-                    <thead className="border-b border-blue-50 bg-slate-50/60 text-xs font-bold text-slate-400">
+                    <thead className={ui.thead}>
                       <tr>
-                        <th scope="col" className="px-3 py-2">เวลา</th>
-                        <th scope="col" className="px-3 py-2">แผนก / โซน</th>
-                        <th scope="col" className="px-3 py-2">ผู้เบิก / ผู้ส่ง</th>
-                        <th scope="col" className="px-3 py-2">หมายเหตุ</th>
-                        <th scope="col" className="px-3 py-2">สถานะ</th>
-                        <th scope="col" className="px-3 py-2 text-right">ดำเนินการ</th>
+                        <th scope="col" className="px-4 py-3.5">เวลา</th>
+                        <th scope="col" className="px-4 py-3.5">แผนก / โซน</th>
+                        <th scope="col" className="px-4 py-3.5">ผู้เบิก / ผู้ส่ง</th>
+                        <th scope="col" className="px-4 py-3.5">หมายเหตุ</th>
+                        <th scope="col" className="px-4 py-3.5">สถานะ</th>
+                        <th scope="col" className="px-4 py-3.5"><span className="sr-only">ดำเนินการ</span></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-blue-50/80">
+                    <tbody className="divide-y divide-blue-50">
                       {reqs.map((req) => (
-                        <tr key={req.id} className="align-middle hover:bg-blue-50/40 transition-colors group">
-                          <td className="p-3 text-xs font-semibold text-slate-400 whitespace-nowrap">
+                        <tr key={req.id} className="align-middle transition-colors hover:bg-blue-50/40">
+                          <td className="whitespace-nowrap px-4 py-4 text-xs font-semibold tabular-nums text-slate-500">
                             {new Date(req.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                           </td>
-                          <td className="p-3">
-                            <span className="font-black text-slate-800 text-sm">{req.branch_name}</span>
+                          <td className="px-4 py-4">
+                            <span className="font-black text-[#1a3a6e]">{req.branch_name}</span>
                             {req.zone_name && <p className="mt-0.5 text-xs font-bold text-blue-700">โซน: {req.zone_name}</p>}
                           </td>
-                          <td className="p-3">
-                            <span className="text-xs font-semibold text-slate-600">{req.requester_name}</span>
+                          <td className="px-4 py-4">
+                            <span className="flex items-center gap-2">
+                              <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-black text-blue-800">{(req.requester_name || '?').trim().slice(0, 1)}</span>
+                              <span className="text-slate-700">{req.requester_name}</span>
+                            </span>
                             {needsSender(req) && (
-                              <p className={'mt-0.5 text-[11px] font-semibold '+(req.sender_name?'text-blue-800':'text-amber-700')}>
-                                หัวหน้า / รองหัวหน้า: {req.sender_name?.trim()||'ยังไม่ระบุ'}
+                              <p className={'mt-1 text-[11px] font-semibold ' + (req.sender_name ? 'text-blue-800' : 'text-amber-700')}>
+                                หัวหน้า / รองหัวหน้า: {req.sender_name?.trim() || 'ยังไม่ระบุ'}
                               </p>
                             )}
                           </td>
-                          <td className="p-3 text-xs">
+                          <td className="px-4 py-4 text-xs">
                             {req.note?.trim() && (
                               <p title={req.note} className="line-clamp-2 whitespace-pre-wrap wrap-break-word font-semibold text-slate-600">
                                 <span className="text-slate-400">ผู้เบิก: </span>{req.note}
@@ -445,371 +453,186 @@ export default function AdminRequisitionsPage() {
                             )}
                             {!req.note?.trim() && !req.admin_note?.trim() && <span className="text-slate-300">—</span>}
                           </td>
-                          <td className="p-3">
-                            <div className="flex items-center gap-1 flex-wrap">
-                              {getStatusBadge(req.status)}
-                              {newSince !== null && Date.parse(req.created_at) > Date.parse(newSince) && !openedIds.has(req.id) && (
+                          <td className="px-4 py-4">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <StatusBadge status={req.status} />
+                              {req.status === 'pending' && newSince !== null && Date.parse(req.created_at) > Date.parse(newSince) && !openedIds.has(req.id) && (
                                 <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden="true" />
-                                  ใหม่
+                                  <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden="true" />ใหม่
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="p-3 text-right whitespace-nowrap">
-                            <div className="inline-flex items-center justify-end gap-1.5">
-                              {req.status === 'pending' ? (
-                                <button
-                                  onClick={() => handleViewDetails(req, 'review')}
-                                  className="bg-linear-to-r from-blue-700 to-blue-800 text-white hover:from-blue-800 hover:to-blue-900 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs active:scale-95"
-                                >
-                                  ตรวจสอบ →
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleViewDetails(req, 'view')}
-                                  className="bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100 px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95"
-                                >
-                                  {req.status === 'approved' ? '✅ รายละเอียด' : '❌ ดูข้อมูล'}
-                                </button>
-                              )}
-                            </div>
+                          <td className="whitespace-nowrap px-4 py-4 text-right">
+                            {req.status === 'pending'
+                              ? <button className={ui.rowBtnPrimary} onClick={() => handleViewDetails(req, 'review')}>ตรวจสอบ →</button>
+                              : <button className={ui.rowBtn} onClick={() => handleViewDetails(req, 'view')}>ดูรายละเอียด</button>}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              </div>
+              </section>
             ))}
 
-            <div className="bg-white border border-blue-100 rounded-2xl px-5 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm shadow-blue-100/50">
-              <p className="text-xs font-semibold text-slate-400 shrink-0">
+            <div className={ui.card + ' flex flex-col items-center justify-between gap-3 px-5 py-4 sm:flex-row'}>
+              <p className="shrink-0 text-xs font-semibold text-slate-500">
                 แสดง {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, totalCount)} จาก {totalCount.toLocaleString('th-TH')} รายการ
               </p>
-              <div className="flex items-center gap-1.5 flex-wrap justify-center">
-                <button
-                  onClick={() => goToPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="px-3 py-2 rounded-xl text-xs font-bold border border-blue-100 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
-                >
-                  ← ก่อนหน้า
-                </button>
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
+                <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1} className={ui.rowBtn}>← ก่อนหน้า</button>
                 {pageNumbers().map((p, idx) =>
                   p === '…' ? (
-                    <span key={`ellipsis-${idx}`} className="px-2 text-slate-300 text-sm select-none">…</span>
+                    <span key={`ellipsis-${idx}`} className="select-none px-2 text-sm text-slate-300">…</span>
                   ) : (
-                    <button
-                      key={p}
-                      onClick={() => goToPage(p as number)}
-                      className={`w-9 h-9 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-                        currentPage === p
-                          ? 'bg-linear-to-r from-blue-700 to-blue-800 text-white shadow-sm shadow-blue-700/30'
-                          : 'border border-blue-100 bg-blue-50 text-blue-700 hover:bg-blue-100'
-                      }`}
-                    >
+                    <button key={p} aria-current={currentPage === p ? 'page' : undefined} onClick={() => goToPage(p as number)}
+                      className={'h-9 w-9 rounded-lg text-xs font-bold ' + (currentPage === p ? 'bg-[#1a3a6e] text-white shadow-sm' : 'border border-blue-200 bg-white text-blue-900 hover:bg-blue-50')}>
                       {p}
                     </button>
                   )
                 )}
-                <button
-                  onClick={() => goToPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-2 rounded-xl text-xs font-bold border border-blue-100 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
-                >
-                  ถัดไป →
-                </button>
+                <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages} className={ui.rowBtn}>ถัดไป →</button>
               </div>
             </div>
           </>
         )}
       </div>
 
+      {/* ตรวจสอบ / ดูรายละเอียดใบเบิก */}
+      {selectedReq && (
+        <Modal title={modalMode === 'review' ? '📋 ตรวจสอบใบเบิก' : '📄 รายละเอียดใบเบิก'} busy={saving} onClose={closeReview}
+          footer={modalMode === 'review' ? (
+            <>
+              <span className="mr-auto text-sm font-bold text-blue-900">รวม {details.reduce((sum, d) => sum + (d.price_at_time || 0) * (d.quantity || 0), 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฿</span>
+              <button disabled={saving || loadingDetails || Boolean(detailError)} onClick={() => void submitReview('rejected')} className={ui.danger}>ปฏิเสธใบเบิก</button>
+              <button disabled={saving || loadingDetails || Boolean(detailError)} onClick={() => void submitReview('approved')} className={ui.button}>{saving ? 'กำลังบันทึก...' : 'อนุมัติรายการที่เลือก'}</button>
+            </>
+          ) : <button className={ui.secondary} onClick={closeReview}>ปิดหน้าต่าง</button>}>
+          {detailError && <div className="mb-4"><Notice tone="error">{detailError}</Notice></div>}
+          {loadingDetails ? <Skeleton rows={3} /> : (
+            <fieldset disabled={saving} className="min-w-0 space-y-4">
+              <div className="rounded-xl bg-blue-50 p-4 text-sm">
+                <p className="flex flex-wrap items-center gap-2 font-bold">{selectedReq.branch_name}{selectedReq.zone_name && <span className="text-blue-700">· โซน {selectedReq.zone_name}</span>}<StatusBadge status={selectedReq.status} /></p>
+                <p className="mt-1 text-slate-500">ผู้เบิก {selectedReq.requester_name} · {new Date(selectedReq.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                {needsSender(selectedReq) && (
+                  <p className={'mt-2 rounded-lg border p-2 ' + (selectedReq.sender_name ? 'border-blue-100 bg-white text-blue-900' : 'border-amber-200 bg-amber-50 text-amber-800')}>
+                    หัวหน้า / รองหัวหน้าผู้ส่ง: <strong>{selectedReq.sender_name?.trim() || 'ยังไม่ระบุ'}</strong>
+                  </p>
+                )}
+              </div>
+
+              <p className="whitespace-pre-wrap wrap-break-word rounded-xl border border-blue-100 p-3 text-sm"><strong>หมายเหตุใบเบิก:</strong> {selectedReq.note || '—'}</p>
+              {modalMode === 'review'
+                ? <label className="block space-y-1.5"><span className="text-xs font-bold text-blue-800">หมายเหตุผู้ตรวจสอบ</span><textarea maxLength={2000} rows={3} value={adminNote} onChange={e => setAdminNote(e.target.value)} placeholder="เช่น ตัดรายการที่ไม่ให้เบิก หรือเหตุผลไม่อนุมัติ" className={ui.input} /></label>
+                : <p className="whitespace-pre-wrap wrap-break-word rounded-xl border border-blue-100 p-3 text-sm"><strong>หมายเหตุผู้ตรวจสอบ:</strong> {selectedReq.admin_note || '—'}</p>}
+              <RequestedItems original={selectedReq.requested_items} current={details} status={selectedReq.status} />
+              {modalMode === 'review' && originalDetails.some(d => !details.some(x => x.id === d.id)) && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm">
+                  <strong className="text-red-700">รายการที่ตัดออก (จะเก็บในประวัติ)</strong>
+                  {originalDetails.filter(d => !details.some(x => x.id === d.id)).map(d => <div key={d.id} className="mt-2 flex justify-between gap-3"><span>{d.items?.name} · {d.quantity} {d.items?.unit}</span><button type="button" onClick={() => setDetails(prev => [...prev, d])} className="font-bold text-blue-800 hover:underline">คืนรายการ</button></div>)}
+                </div>
+              )}
+
+              <div className="overflow-x-auto rounded-xl border border-blue-100">
+                <table className="w-full min-w-160 text-left text-sm">
+                  <thead className={ui.thead}>
+                    <tr>
+                      <th className="w-14 px-3 py-3 text-center">ลำดับ</th>
+                      <th className="px-3 py-3">รายการสินค้า</th>
+                      <th className="w-28 px-3 py-3 text-center">จำนวน</th>
+                      <th className="w-20 px-3 py-3 text-center">หน่วย</th>
+                      <th className="w-28 px-3 py-3 text-right">ราคา/หน่วย</th>
+                      {modalMode === 'review' && <th className="w-16 px-3 py-3"><span className="sr-only">ลบ</span></th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-blue-50">
+                    {details.map((d, index) => (
+                      <tr key={d.id} className="transition-colors hover:bg-blue-50/40">
+                        <td className="px-3 py-3 text-center text-xs font-semibold tabular-nums text-slate-400">{index + 1}</td>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-3">
+                            <button type="button" disabled={!d.items?.image_url}
+                              onClick={() => { if (d.items?.image_url) setSelectedImage({ url: d.items.image_url, name: d.items.name }); }}
+                              aria-label={`ขยายรูป ${d.items?.name || 'สินค้า'}`} title={d.items?.image_url ? 'กดเพื่อขยายรูป' : 'ไม่มีรูปสินค้า'}
+                              className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-blue-100 bg-blue-50 enabled:cursor-zoom-in enabled:hover:ring-2 enabled:hover:ring-blue-300 focus-visible:outline-2 focus-visible:outline-blue-700">
+                              <span className="text-2xl" aria-hidden="true">📦</span>
+                              {d.items?.image_url && <img src={d.items.image_url} alt="" loading="lazy" className="absolute inset-0 h-full w-full bg-white object-contain p-1" onError={(event) => { event.currentTarget.style.display = 'none'; }} />}
+                            </button>
+                            <div className="flex flex-1 items-center justify-between gap-2">
+                              <span className="wrap-break-word font-bold text-[#1a3a6e]">{d.items?.name || 'ไม่พบข้อมูลสินค้า'}</span>
+                              {modalMode === 'review' && (
+                                <button type="button" title="เปลี่ยนสินค้าทดแทน" className={ui.rowBtn + ' shrink-0'}
+                                  onClick={() => { setActiveDetailId(d.id); setItemSearchTerm(''); setItemSelectorOpen(true); }}>✏️ เปลี่ยน</button>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          {modalMode === 'review'
+                            ? <input type="number" min="1" max="2147483647" step="1" value={d.quantity} aria-label={'จำนวน ' + (d.items?.name || '')} onChange={(e) => handleDetailChange(d.id, e.target.value)} className={ui.input + ' h-11 text-center font-black'} />
+                            : <span className="font-black text-[#1a3a6e]">{d.quantity}</span>}
+                        </td>
+                        <td className="px-3 py-3 text-center text-slate-500">{d.items?.unit}</td>
+                        <td className="px-3 py-3 text-right font-bold tabular-nums">{(d.price_at_time || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+                        {modalMode === 'review' && (
+                          <td className="px-3 py-3 text-center"><button type="button" aria-label="ลบรายการนี้ออก" onClick={() => handleDeleteDetail(d.id)} className="px-2 text-sm font-bold text-red-600 hover:underline">ลบ</button></td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-blue-100 bg-blue-50/40 font-black text-slate-800">
+                      <td colSpan={4} className="px-3 py-3 text-right">รวมเป็นเงินทั้งสิ้น</td>
+                      <td className="px-3 py-3 text-right tabular-nums text-[#1a3a6e]" colSpan={modalMode === 'review' ? 2 : 1}>
+                        {details.reduce((sum, d) => sum + (d.price_at_time || 0) * (d.quantity || 0), 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฿
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </fieldset>
+          )}
+        </Modal>
+      )}
+
+      {/* เลือกสินค้าทดแทน (เปิดทับ modal ตรวจสอบ จึงต้องเป็น dialog เหมือนกัน) */}
+      {itemSelectorOpen && (
+        <Modal title="🔍 เลือกสินค้าทดแทน" busy={false} maxWidth="max-w-lg" onClose={() => setItemSelectorOpen(false)}
+          footer={<button className={ui.secondary} onClick={() => setItemSelectorOpen(false)}>ยกเลิก</button>}>
+          <div className="space-y-3">
+            <SearchBox label="ค้นหาสินค้า" placeholder="พิมพ์ชื่อสินค้าเพื่อค้นหา..." value={itemSearchTerm} onChange={setItemSearchTerm} />
+            <div className="space-y-2">
+              {filteredMasterItems.length === 0 ? <EmptyState icon="📭" title="ไม่พบสินค้าที่ค้นหา" hint="ลองเปลี่ยนคำค้นหา" /> : filteredMasterItems.map((item) => (
+                <button key={item.id} type="button" onClick={() => handleSelectReplacementItem(item)}
+                  className="flex w-full items-center gap-3 rounded-xl border border-blue-100 p-3 text-left transition-colors hover:bg-blue-50/40 focus-visible:outline-2 focus-visible:outline-blue-700">
+                  <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-blue-100 bg-blue-50">
+                    <span className="text-xl" aria-hidden="true">📦</span>
+                    {item.image_url && <img src={item.image_url} alt="" className="absolute inset-0 h-full w-full bg-white object-contain p-1" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-black text-[#1a3a6e]">{item.name}</span>
+                    <span className="mt-0.5 block text-xs text-slate-500">หน่วย {item.unit} · {(item.price ?? 0).toLocaleString('th-TH')} ฿</span>
+                  </span>
+                  <span className={ui.rowBtnPrimary + ' shrink-0'}>เลือก</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {selectedImage && (
-        <dialog
-          ref={imageDialogRef}
-          aria-label={`รูปสินค้า ${selectedImage.name}`}
-          onClose={() => setSelectedImage(null)}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) imageDialogRef.current?.close();
-          }}
-          className="fixed inset-0 m-auto h-dvh w-screen max-h-none max-w-none border-0 bg-transparent p-4 outline-none backdrop:bg-slate-950/80 open:flex open:items-center open:justify-center"
-        >
+        <dialog ref={imageDialogRef} aria-label={`รูปสินค้า ${selectedImage.name}`} onClose={() => setSelectedImage(null)}
+          onClick={(event) => { if (event.target === event.currentTarget) imageDialogRef.current?.close(); }}
+          className="fixed inset-0 m-auto h-dvh w-screen max-h-none max-w-none border-0 bg-transparent p-4 outline-none backdrop:bg-slate-950/80 open:flex open:items-center open:justify-center">
           <div className="relative max-w-5xl rounded-2xl border border-blue-100 bg-white p-3 shadow-2xl sm:p-5">
-            <button
-              type="button"
-              autoFocus
-              aria-label="ปิดรูปขยาย"
-              onClick={() => imageDialogRef.current?.close()}
-              className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[#1a3a6e] text-xl font-bold text-white shadow-md hover:bg-blue-700"
-            >×</button>
+            <button type="button" autoFocus aria-label="ปิดรูปขยาย" onClick={() => imageDialogRef.current?.close()}
+              className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[#1a3a6e] text-xl font-bold text-white shadow-md hover:bg-blue-800">×</button>
             <img src={selectedImage.url} alt={selectedImage.name} className="max-h-[75dvh] max-w-full rounded-xl object-contain" />
             <p className="mt-3 text-center text-sm font-bold text-[#1a3a6e]">{selectedImage.name}</p>
           </div>
         </dialog>
-      )}
-
-      {/* Detail Modal */}
-      {selectedReq && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div role="dialog" aria-modal="true" aria-labelledby="review-dialog-title" className="flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl">
-            <div className="shrink-0 bg-[#1a3a6e] text-white p-5 flex items-start justify-between gap-4">
-              <div>
-                <h3 id="review-dialog-title" className="font-black text-lg tracking-tight">
-                  {modalMode === 'review' ? '📋 ตรวจสอบใบเบิก' : '📄 รายละเอียดใบเบิก'}
-                </h3>
-                <p className="text-sm text-blue-200 mt-1 font-semibold">
-                  {selectedReq.branch_name} · {selectedReq.requester_name}
-                </p>
-              </div>
-              <button
-                disabled={saving}
-                onClick={() => {detailRequest.current++;setSelectedReq(null);}}
-                className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white font-bold text-lg transition-all"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
-              {detailError&&<p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-red-700">{detailError}</p>}
-              {loadingDetails ? (
-                <div className="flex justify-center py-10">
-                  <div className="w-8 h-8 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin" />
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-2 bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm">
-                    <div>
-                      <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">ผู้เบิก</p>
-                      <p className="font-bold text-slate-700 mt-1">{selectedReq.requester_name}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">แผนก</p>
-                      <p className="font-bold text-slate-700 mt-1">{selectedReq.branch_name}</p>
-                      {selectedReq.zone_name && <p className="mt-1">โซน: {selectedReq.zone_name}</p>}
-                      {needsSender(selectedReq) && (
-                        <p className={'mt-2 rounded-lg border p-2 text-sm ' + (selectedReq.sender_name ? 'border-blue-100 text-blue-900' : 'border-amber-200 bg-amber-50 text-amber-800')}>
-                          หัวหน้า / รองหัวหน้าผู้ส่ง: <strong>{selectedReq.sender_name?.trim() || 'ยังไม่ระบุ'}</strong>
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">วันที่</p>
-                      <p className="font-bold text-slate-700 mt-1">
-                        {new Date(selectedReq.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-blue-700 uppercase tracking-wider">สถานะ</p>
-                      <div className="mt-1">{getStatusBadge(selectedReq.status)}</div>
-                    </div>
-                  </div>
-
-                  <p className="whitespace-pre-wrap break-words rounded-xl border border-blue-100 p-3 text-sm"><strong>หมายเหตุใบเบิก:</strong> {selectedReq.note||'—'}</p>
-                  {modalMode==='review'?<label className="block text-sm font-bold text-blue-900">หมายเหตุผู้ตรวจสอบ<textarea disabled={saving} maxLength={2000} rows={3} value={adminNote} onChange={e=>setAdminNote(e.target.value)} placeholder="เช่น ตัดรายการที่ไม่ให้เบิก หรือเหตุผลไม่อนุมัติ" className="mt-2 w-full rounded-xl border border-blue-200 p-3 font-normal"/></label>:<p className="whitespace-pre-wrap break-words text-sm"><strong>หมายเหตุผู้ตรวจสอบ:</strong> {selectedReq.admin_note||'—'}</p>}
-                  <RequestedItems original={selectedReq.requested_items} current={details} status={selectedReq.status}/>
-                  {modalMode==='review'&&originalDetails.some(d=>!details.some(x=>x.id===d.id))&&<div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm"><strong>รายการที่ตัดออก (จะเก็บในประวัติ)</strong>{originalDetails.filter(d=>!details.some(x=>x.id===d.id)).map(d=><div key={d.id} className="mt-2 flex justify-between gap-3"><span>{d.items?.name} · {d.quantity} {d.items?.unit}</span><button disabled={saving} type="button" onClick={()=>setDetails(prev=>[...prev,d])} className="font-bold text-blue-800">คืนรายการ</button></div>)}</div>}
-                  <table className="w-full text-left text-sm border-collapse">
-                    <thead>
-                      <tr className="border-b-2 border-blue-100 text-blue-700">
-                        <th className="py-2.5 px-2 font-black">รายการสินค้า (กดดินสอเพื่อเปลี่ยน)</th>
-                        <th className="py-2.5 px-2 text-center font-black w-24">จำนวน</th>
-                        <th className="py-2.5 px-2 text-center font-black w-20">หน่วย</th>
-                        <th className="py-2.5 px-2 text-right font-black w-28">ราคา/หน่วย</th>
-                        {modalMode === 'review' && <th className="py-2.5 px-2 text-center font-black w-14">ลบ</th>}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-blue-50">
-                      {details.map((d) => (
-                        <tr key={d.id} className="text-slate-700 hover:bg-blue-50/50">
-                          <td className="py-3 px-2 font-semibold">
-                            <div className="flex items-center gap-3">
-                              <button
-                                type="button"
-                                disabled={!d.items?.image_url}
-                                onClick={() => {
-                                  if (d.items?.image_url) setSelectedImage({ url: d.items.image_url, name: d.items.name });
-                                }}
-                                aria-label={`ขยายรูป ${d.items?.name || 'สินค้า'}`}
-                                title={d.items?.image_url ? 'กดเพื่อขยายรูป' : 'ไม่มีรูปสินค้า'}
-                                className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-blue-100 bg-blue-50 enabled:cursor-zoom-in enabled:hover:ring-2 enabled:hover:ring-blue-400 focus-visible:outline-2 focus-visible:outline-blue-700"
-                              >
-                                <span className="text-2xl" aria-hidden="true">📦</span>
-                                {d.items?.image_url && (
-                                  <img
-                                    src={d.items.image_url}
-                                    alt={d.items.name}
-                                    loading="lazy"
-                                    className="absolute inset-0 h-full w-full bg-white object-contain p-1"
-                                    onError={(event) => { event.currentTarget.style.display = 'none'; }}
-                                  />
-                                )}
-                              </button>
-
-                              <div className="flex-1 flex items-center justify-between gap-2">
-                                <span className="wrap-break-word">{d.items?.name || 'ไม่พบข้อมูลสินค้า'}</span>
-                                {modalMode === 'review' && (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setActiveDetailId(d.id);
-                                      setItemSearchTerm('');
-                                      setItemSelectorOpen(true);
-                                    }}
-                                    className="shrink-0 p-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl border border-blue-200 transition-all font-bold text-xs flex items-center gap-1"
-                                    title="เปลี่ยนสินค้าทดแทน"
-                                  >
-                                    ✏️ เปลี่ยน
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3 px-2 text-center">
-                            {modalMode === 'review' ? (
-                              <input
-                                type="number"
-                                disabled={saving}
-                                min="1"
-                                max="2147483647"
-                                step="1"
-                                value={d.quantity}
-                                onChange={(e) => handleDetailChange(d.id, e.target.value)}
-                                className="w-20 h-9 text-center font-black text-blue-900 border border-blue-200 rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-400"
-                              />
-                            ) : (
-                              <span className="font-black text-blue-900">{d.quantity}</span>
-                            )}
-                          </td>
-                          <td className="py-3 px-2 text-center text-slate-500">{d.items?.unit}</td>
-                          <td className="py-3 px-2 text-right font-bold text-slate-700">
-                            {(d.price_at_time || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
-                          </td>
-                          {modalMode === 'review' && (
-                            <td className="py-3 px-2 text-center">
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteDetail(d.id)}
-                                className="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-all"
-                                title="ลบรายการนี้ออก"
-                              >
-                                🗑️
-                              </button>
-                            </td>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 border-blue-200 font-black text-slate-800">
-                        <td colSpan={modalMode === 'review' ? 3 : 3} className="py-3 px-2 text-right text-sm">รวมเป็นเงินทั้งสิ้น</td>
-                        <td className="py-3 px-2 text-right text-blue-900 text-base" colSpan={modalMode === 'review' ? 2 : 1}>
-                          {details
-                            .reduce((sum, d) => sum + (d.price_at_time || 0) * (d.quantity || 0), 0)
-                            .toLocaleString('th-TH', { minimumFractionDigits: 2 })}{' '}
-                          ฿
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            <div className="shrink-0 border-t border-blue-100 bg-slate-50 p-4 flex flex-wrap gap-3">
-              {modalMode === 'review' ? (
-                <>
-                  <button
-                    disabled={saving||loadingDetails||Boolean(detailError)}
-                    onClick={() => void submitReview('rejected')}
-                    className="flex-1 border border-red-200 text-red-600 py-3 rounded-xl text-sm font-bold hover:bg-red-50 transition-all active:scale-95"
-                  >
-                    ❌ ปฏิเสธใบเบิก
-                  </button>
-                  <button
-                    disabled={saving||loadingDetails||Boolean(detailError)}
-                    onClick={() => void submitReview('approved')}
-                    className="flex-1 bg-linear-to-r from-blue-700 to-blue-800 text-white py-3 rounded-xl text-sm font-bold hover:from-blue-800 hover:to-blue-900 transition-all shadow-md shadow-blue-200 active:scale-95"
-                  >
-                    {saving?'กำลังบันทึก...':'✅ อนุมัติรายการที่เลือก'}
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setSelectedReq(null)}
-                  className="w-full bg-blue-50 text-blue-700 border border-blue-100 py-3 rounded-xl text-sm font-bold hover:bg-blue-100 transition-all"
-                >
-                  ปิดหน้าต่าง
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Sub-Modal: ค้นหาและเลือกสินค้าทดแทน ── */}
-      {itemSelectorOpen && (
-        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-[60] flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-blue-100 flex flex-col max-h-[80vh]">
-            <div className="bg-[#1a3a6e] text-white p-4 flex items-center justify-between">
-              <h3 className="font-black text-base">🔍 ค้นหาและเลือกสินค้าทดแทน</h3>
-              <button
-                onClick={() => setItemSelectorOpen(false)}
-                className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white font-bold text-lg"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="p-4 border-b border-blue-100 bg-blue-50/50">
-              <input
-                type="text"
-                autoFocus
-                placeholder="พิมพ์ชื่อสินค้าเพื่อค้นหา..."
-                value={itemSearchTerm}
-                onChange={(e) => setItemSearchTerm(e.target.value)}
-                className="w-full h-11 px-4 border border-blue-200 rounded-xl bg-white text-sm font-semibold outline-none focus:ring-2 focus:ring-blue-400 shadow-xs"
-              />
-            </div>
-
-            <div className="p-4 overflow-y-auto space-y-2 flex-1">
-              {filteredMasterItems.length === 0 ? (
-                <p className="text-center text-slate-400 py-10 font-bold">ไม่พบสินค้าที่ค้นหา</p>
-              ) : (
-                filteredMasterItems.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => handleSelectReplacementItem(item)}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-blue-100 hover:bg-blue-50 cursor-pointer transition-all active:scale-[0.99] group"
-                  >
-                    <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-blue-100 bg-white">
-                      <span className="text-xl" aria-hidden="true">📦</span>
-                      {item.image_url && (
-                        <img
-                          src={item.image_url}
-                          alt={item.name}
-                          className="absolute inset-0 h-full w-full object-contain p-1 bg-white"
-                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                        />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-800 text-sm truncate group-hover:text-blue-700">{item.name}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">หน่วย: {item.unit} | ราคา: {item.price ?? 0} ฿</p>
-                    </div>
-                    <button
-                      type="button"
-                      className="px-3 py-1.5 bg-blue-700 text-white text-xs font-bold rounded-lg group-hover:bg-blue-800 shrink-0"
-                    >
-                      เลือก
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

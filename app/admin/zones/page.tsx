@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import DepartmentCodeEditor from '@/components/DepartmentCodeEditor';
 import DepartmentCodeList from '@/components/DepartmentCodeList';
 import { requestError } from '@/lib/requisitionRules';
+import { ui, PageHero, Notice, StatCard, Field, EmptyState, Skeleton, Pagination, Modal } from '@/components/AdminUI';
 
 interface Branch {
   id: string;
@@ -20,43 +21,35 @@ interface Zone {
 }
 
 async function readManagementData() {
- const [zoneResult, branchResult] = await Promise.all([
-  supabase.from('zones').select('id, name, branch_id, sort_order').order('sort_order', { ascending: true, nullsFirst: false }).order('name'),
-  supabase.from('branches').select('id, name').eq('is_active', true).order('name'),
- ]);
- if (zoneResult.error) throw zoneResult.error;
- if (branchResult.error) throw branchResult.error;
- const branches = branchResult.data ?? [];
- const activeIds = new Set(branches.map((branch) => branch.id));
- return { zones: (zoneResult.data ?? []).filter((zone) => activeIds.has(zone.branch_id)), branches };
+  const [zoneResult, branchResult] = await Promise.all([
+    supabase.from('zones').select('id, name, branch_id, sort_order').order('sort_order', { ascending: true, nullsFirst: false }).order('name'),
+    supabase.from('branches').select('id, name').eq('is_active', true).order('name'),
+  ]);
+  if (zoneResult.error) throw zoneResult.error;
+  if (branchResult.error) throw branchResult.error;
+  const branches = branchResult.data ?? [];
+  const activeIds = new Set(branches.map((branch) => branch.id));
+  return { zones: (zoneResult.data ?? []).filter((zone) => activeIds.has(zone.branch_id)), branches };
 }
 
 export default function AdminZonesPage() {
-  const [zones, setZones]           = useState<Zone[]>([]);
-  const [branches, setBranches]     = useState<Branch[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [saving, setSaving]         = useState(false);
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [branchName, setBranchName] = useState('');
   const [savingBranch, setSavingBranch] = useState(false);
   const branchBusy = useRef(false);
   const orderBusy = useRef(false);
   const [loadError, setLoadError] = useState('');
-  const [codeBranch,setCodeBranch]=useState<Branch|null>(null);
-  const [codeMessage,setCodeMessage]=useState('');
-  const [showCodes,setShowCodes]=useState(false);
+  const [codeBranch, setCodeBranch] = useState<Branch | null>(null);
+  const [codeMessage, setCodeMessage] = useState('');
+  const [showCodes, setShowCodes] = useState(false);
   const [branchCode, setBranchCode] = useState('');
   const [branchCodeConfirm, setBranchCodeConfirm] = useState('');
   const [branchAdminKey, setBranchAdminKey] = useState('');
   const [showBranchCode, setShowBranchCode] = useState(false);
   const [showAddBranch, setShowAddBranch] = useState(false);
-  const addBranchDialog = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const element = addBranchDialog.current;
-    if (!element) return;
-    if (showAddBranch && !element.open) element.showModal();
-    if (!showAddBranch && element.open) element.close();
-  }, [showAddBranch]);
 
   function closeAddBranch() {
     if (branchBusy.current) return;
@@ -65,12 +58,12 @@ export default function AdminZonesPage() {
   }
 
   // form state
-  const [newName, setNewName]       = useState('');
+  const [newName, setNewName] = useState('');
   const [newBranchId, setNewBranchId] = useState('');
 
   // edit state
-  const [editId, setEditId]         = useState<string | null>(null);
-  const [editName, setEditName]     = useState('');
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
 
   // filter
   const [filterBranch, setFilterBranch] = useState('all');
@@ -144,7 +137,7 @@ export default function AdminZonesPage() {
 
   async function handleAdd() {
     if (!newName.trim()) { alert('กรุณากรอกชื่อโซน'); return; }
-    if (!newBranchId)    { alert('กรุณาเลือกแผนก'); return; }
+    if (!newBranchId) { alert('กรุณาเลือกแผนก'); return; }
     setSaving(true);
     const nextOrder = Math.max(0, ...zones.map((zone) => zone.sort_order ?? 0)) + 1;
     const { error } = await supabase.from('zones').insert([{ name: newName.trim(), branch_id: newBranchId, sort_order: nextOrder }]);
@@ -210,16 +203,11 @@ export default function AdminZonesPage() {
     } finally { orderBusy.current = false; }
   };
 
-  const filteredZones = filterBranch === 'all'
-    ? zones
-    : zones.filter((z) => z.branch_id === filterBranch);
+  const filteredZones = filterBranch === 'all' ? zones : zones.filter((z) => z.branch_id === filterBranch);
 
   const totalPages = Math.max(1, Math.ceil(filteredZones.length / ZONES_PER_PAGE));
   const visiblePage = Math.min(currentPage, totalPages);
-  const pagedZones = filteredZones.slice(
-    (visiblePage - 1) * ZONES_PER_PAGE,
-    visiblePage * ZONES_PER_PAGE,
-  );
+  const pagedZones = filteredZones.slice((visiblePage - 1) * ZONES_PER_PAGE, visiblePage * ZONES_PER_PAGE);
 
   function handleFilterChange(val: string) {
     setFilterBranch(val);
@@ -227,258 +215,149 @@ export default function AdminZonesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#e8edf5] py-6 sm:py-8 px-3 sm:px-6 lg:px-8 text-slate-800">
-      <div className="max-w-7xl mx-auto space-y-5">
+    <div className={ui.page}>
+      <div className={ui.wrap}>
 
+        <PageHero icon="🗂️" title="จัดการแผนกและโซน" subtitle="ลากแถวโซนเพื่อสลับลำดับ · ลำดับจะถูกบันทึกอัตโนมัติ"
+          actions={<>
+            <button type="button" onClick={() => setShowCodes(true)} className={ui.heroBtn}>🔑 ดูรหัสทุกแผนก</button>
+            <button type="button" disabled={loading} onClick={() => setShowAddBranch(true)} className={ui.heroPrimary}>+ เพิ่มแผนกใหม่</button>
+          </>} />
 
-        <div className="relative bg-white border border-blue-100/80 rounded-2xl overflow-hidden shadow-sm p-6">
-          <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-[#1a3a6e] via-[#c8a230] to-[#1a3a6e]" />
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🗂️</span>
-            <div>
-              <h1 className="text-xl font-black text-slate-800">จัดการแผนกและโซน</h1>
-              <p className="text-xs text-blue-700 font-bold mt-0.5">คลิกเมาส์ค้างที่แถบโซนแล้วลากเพื่อสลับลำดับได้ตามต้องการ</p>
-            </div>
-          </div>
+        {showCodes && <DepartmentCodeList onClose={() => setShowCodes(false)} onEdit={branch => { setCodeMessage(''); setCodeBranch(branch); }} />}
+        {codeBranch && <DepartmentCodeEditor branch={codeBranch} onClose={() => setCodeBranch(null)} onSaved={setCodeMessage} />}
+        {codeMessage && <Notice tone="success" onClose={() => setCodeMessage('')}>{codeMessage}</Notice>}
+        {loadError && <Notice tone="error" action={<button onClick={() => void loadData()} className="font-bold underline">ลองใหม่</button>}>{loadError}</Notice>}
+
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard accent="blue" icon="🏬" label="แผนกที่เปิดใช้งาน" value={branches.length} unit="แผนก" hint="ทั้งหมดในระบบ" />
+          <StatCard accent="emerald" icon="🗂️" label="โซนทั้งหมด" value={zones.length} unit="โซน" hint="รวมทุกแผนก" />
         </div>
 
-        {showCodes&&<DepartmentCodeList onClose={()=>setShowCodes(false)} onEdit={branch=>{setCodeMessage('');setCodeBranch(branch);}}/>}
-        {codeBranch&&<DepartmentCodeEditor branch={codeBranch} onClose={()=>setCodeBranch(null)} onSaved={setCodeMessage}/>}
-        {codeMessage&&<p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{codeMessage}</p>}
-        {loadError && <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><span>{loadError}</span><button onClick={() => void loadData()} className="font-bold">ลองใหม่</button></div>}
-        <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-          <div>
-            <h2 className="font-black text-[#1a3a6e]">🏬 จัดการแผนก</h2>
-            <p className="mt-1 text-xs text-slate-500">ทั้งหมด {branches.length} แผนก · เพิ่มแผนกและดูโซนที่เกี่ยวข้อง</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" disabled={loading} onClick={() => setShowAddBranch(true)} className="rounded-xl bg-[#1a3a6e] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">+ เพิ่มแผนกใหม่</button>
-              <button type="button" onClick={()=>setShowCodes(true)} className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-900 hover:bg-blue-100">ดูรหัสทุกแผนก</button>
-            </div>
+        <section className={ui.card}>
+          <div className="border-b border-blue-100 p-4">
+            <h2 className="font-black text-[#1a3a6e]">แผนกทั้งหมด</h2>
+            <p className="mt-0.5 text-xs text-slate-500">ดูโซนของแต่ละแผนก หรือปิดใช้งานแผนกที่ไม่ใช้แล้ว (ประวัติและรายงานย้อนหลังยังอยู่)</p>
           </div>
-          <dialog ref={addBranchDialog} onCancel={(event) => { event.preventDefault(); closeAddBranch(); }} onClose={() => setShowAddBranch(false)} aria-labelledby="add-branch-title" className="m-auto max-h-[90dvh] w-[min(95vw,640px)] rounded-2xl border border-blue-100 p-0 text-slate-800 shadow-xl backdrop:bg-slate-900/40">
-          <form className="flex max-h-[90dvh] flex-col" onSubmit={(event) => { event.preventDefault(); void addBranch(); }}>
-            <header className="flex shrink-0 items-center justify-between gap-3 bg-[#1a3a6e] p-5 text-white">
-              <div><h3 id="add-branch-title" className="font-black">➕ เพิ่มแผนกใหม่ พร้อมตั้งรหัสเข้าใช้งาน</h3><p className="mt-1 text-xs text-blue-100">ถ้าตั้งรหัสไม่สำเร็จ ระบบจะไม่สร้างแผนกนี้ให้</p></div>
-              <button type="button" disabled={savingBranch} aria-label="ปิดหน้าเพิ่มแผนก" onClick={closeAddBranch} className="rounded-full bg-white/20 px-3 py-1 text-lg disabled:opacity-40">×</button>
-            </header>
-            <div className="space-y-3 overflow-y-auto p-5">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block text-xs font-bold text-blue-900">ชื่อแผนกใหม่
-                <input required disabled={savingBranch || loading} value={branchName} onChange={(event) => setBranchName(event.target.value)} placeholder="ชื่อแผนกใหม่..." className="mt-1 h-11 w-full rounded-xl border border-blue-200 bg-white px-3 text-sm font-normal text-slate-800 outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-slate-50" />
-              </label>
-              <label className="block text-xs font-bold text-blue-900">รหัสสต็อก / รหัสแอดมินกลาง (ใช้ยืนยันการตั้งรหัส)
-                <input required autoComplete="off" type="password" minLength={12} maxLength={100} disabled={savingBranch || loading} value={branchAdminKey} onChange={(event) => setBranchAdminKey(event.target.value)} className="mt-1 h-11 w-full rounded-xl border border-blue-200 bg-white px-3 text-sm font-normal text-slate-800 outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-slate-50" />
-              </label>
-              <label className="block text-xs font-bold text-blue-900">รหัสเข้าใช้งานของแผนก (12–100 ตัวอักษร)
-                <input required autoComplete="new-password" type={showBranchCode ? 'text' : 'password'} minLength={12} maxLength={100} disabled={savingBranch || loading} value={branchCode} onChange={(event) => setBranchCode(event.target.value)} className="mt-1 h-11 w-full rounded-xl border border-blue-200 bg-white px-3 text-sm font-normal text-slate-800 outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-slate-50" />
-              </label>
-              <label className="block text-xs font-bold text-blue-900">ยืนยันรหัสของแผนก
-                <input required autoComplete="new-password" type={showBranchCode ? 'text' : 'password'} minLength={12} maxLength={100} disabled={savingBranch || loading} value={branchCodeConfirm} onChange={(event) => setBranchCodeConfirm(event.target.value)} className="mt-1 h-11 w-full rounded-xl border border-blue-200 bg-white px-3 text-sm font-normal text-slate-800 outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-slate-50" />
-              </label>
+          {loading ? <Skeleton rows={3} /> : branches.length === 0 ? <EmptyState icon="🏬" title="ยังไม่มีแผนก" hint="กด “+ เพิ่มแผนกใหม่” ก่อนสร้างโซน" /> : (
+            <div className="grid max-h-80 gap-3 overflow-y-auto p-4 sm:grid-cols-2 lg:grid-cols-3">
+              {branches.map((branch) => (
+                <div key={branch.id} className={'flex flex-col justify-between gap-3 rounded-xl border bg-white p-4 transition-colors hover:bg-blue-50/40 ' + (filterBranch === branch.id ? 'border-blue-300 ring-2 ring-[#1a3a6e]/40' : 'border-blue-100')}>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-black text-blue-800">{branch.name.trim().slice(0, 1)}</span>
+                    <div className="min-w-0"><p className="wrap-break-word text-sm font-black text-[#1a3a6e]">{branch.name}</p><p className="text-xs text-slate-500">{zones.filter((zone) => zone.branch_id === branch.id).length} โซน</p></div>
+                  </div>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <button className={ui.rowBtn} onClick={() => { handleFilterChange(branch.id); document.getElementById('zone-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>ดูโซน</button>
+                    <button className={ui.rowBtnDanger} disabled={savingBranch || saving} onClick={() => void deactivateBranch(branch)}>ปิดใช้งาน</button>
+                  </div>
+                </div>
+              ))}
             </div>
-            <label className="flex items-center gap-2 text-sm text-slate-700">
-              <input type="checkbox" checked={showBranchCode} onChange={(event) => setShowBranchCode(event.target.checked)} />
-              แสดงรหัสแผนก
-            </label>
-            <p className="text-xs text-slate-500">ถ้าตั้งรหัสไม่สำเร็จ (เช่น รหัสซ้ำกับแผนกอื่น) ระบบจะไม่สร้างแผนกนี้ให้</p>
-            </div>
-            <footer className="flex shrink-0 justify-end gap-3 border-t border-blue-100 bg-white p-4">
-              <button type="button" disabled={savingBranch} onClick={closeAddBranch} className="rounded-xl border border-blue-200 px-4 py-2.5 text-sm font-bold text-blue-900 disabled:opacity-40">ยกเลิก</button>
-              <button disabled={savingBranch || loading} className="rounded-xl bg-[#1a3a6e] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">{savingBranch ? 'กำลังบันทึก...' : '+ เพิ่มแผนกและตั้งรหัส'}</button>
-            </footer>
-          </form>
-          </dialog>
-          <div className="mt-5 grid max-h-80 gap-3 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
-            {branches.map((branch) => <div key={branch.id} className="flex flex-col items-start justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/30 p-3">
-              <div className="min-w-0"><p className="wrap-break-word text-sm font-bold text-slate-800">{branch.name}</p><p className="mt-1 text-xs text-slate-500">{zones.filter((zone) => zone.branch_id === branch.id).length} โซน</p></div>
-              <div className="flex shrink-0 flex-wrap justify-end gap-2"><button onClick={() => { handleFilterChange(branch.id); document.getElementById('zone-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className="rounded-lg border border-blue-200 bg-white px-2 py-1.5 text-xs font-bold text-blue-800">ดูโซน</button><button disabled={savingBranch || saving} onClick={() => void deactivateBranch(branch)} className="rounded-lg border border-red-100 bg-red-50 px-2 py-1.5 text-xs font-bold text-red-600 disabled:opacity-50">ปิดใช้งาน</button></div>
-            </div>)}
-            {!loading && branches.length === 0 && <p className="py-5 text-sm text-slate-400">ยังไม่มีแผนก เพิ่มแผนกก่อนสร้างโซน</p>}
-          </div>
+          )}
         </section>
 
-        {/* ── Add Zone Form ── */}
-        <div className="bg-white rounded-2xl border border-blue-100 shadow-sm p-5">
-          <h2 className="text-sm font-black text-blue-700 uppercase tracking-widest mb-4">➕ เพิ่มโซนใหม่</h2>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="sm:w-48 shrink-0">
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">แผนก</label>
-              <div className="relative">
-                <select
-                  value={newBranchId}
-                  onChange={(e) => setNewBranchId(e.target.value)}
-                  className="block w-full py-2.5 pl-3.5 pr-8 bg-white border border-slate-200 hover:border-blue-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 rounded-xl text-sm font-semibold text-slate-700 outline-none transition-all appearance-none cursor-pointer"
-                >
-                  <option value="">— เลือกแผนก —</option>
-                  {branches.map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-                <span className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-blue-400 text-[10px]">▼</span>
-              </div>
-            </div>
+        {showAddBranch && (
+          <Modal title="➕ เพิ่มแผนกใหม่ พร้อมตั้งรหัสเข้าใช้งาน" busy={savingBranch} onClose={closeAddBranch} maxWidth="max-w-2xl"
+            footer={<>
+              <span className="mr-auto text-xs text-slate-500">ถ้าตั้งรหัสไม่สำเร็จ ระบบจะไม่สร้างแผนกนี้ให้</span>
+              <button type="button" disabled={savingBranch} onClick={closeAddBranch} className={ui.secondary}>ยกเลิก</button>
+              <button type="button" disabled={savingBranch || loading} onClick={() => void addBranch()} className={ui.button}>{savingBranch ? 'กำลังบันทึก...' : '+ เพิ่มแผนกและตั้งรหัส'}</button>
+            </>}>
+            <form onSubmit={(event) => { event.preventDefault(); void addBranch(); }}>
+              <fieldset disabled={savingBranch || loading} className="min-w-0 space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="ชื่อแผนกใหม่ *"><input required value={branchName} onChange={(event) => setBranchName(event.target.value)} placeholder="ชื่อแผนกใหม่..." className={ui.input} /></Field>
+                  <Field label="รหัสสต็อก / รหัสแอดมินกลาง *"><input required autoComplete="off" type="password" minLength={12} maxLength={100} value={branchAdminKey} onChange={(event) => setBranchAdminKey(event.target.value)} className={ui.input} /></Field>
+                  <Field label="รหัสเข้าใช้งานของแผนก (12–100 ตัวอักษร) *"><input required autoComplete="new-password" type={showBranchCode ? 'text' : 'password'} minLength={12} maxLength={100} value={branchCode} onChange={(event) => setBranchCode(event.target.value)} className={ui.input} /></Field>
+                  <Field label="ยืนยันรหัสของแผนก *"><input required autoComplete="new-password" type={showBranchCode ? 'text' : 'password'} minLength={12} maxLength={100} value={branchCodeConfirm} onChange={(event) => setBranchCodeConfirm(event.target.value)} className={ui.input} /></Field>
+                </div>
+                <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={showBranchCode} onChange={(event) => setShowBranchCode(event.target.checked)} className="h-4 w-4 accent-blue-700" />แสดงรหัสแผนก</label>
+                <div className="rounded-xl bg-blue-50 p-3 text-sm text-blue-900">รหัสสต็อก/แอดมินกลางใช้ยืนยันการตั้งรหัส · ถ้ารหัสซ้ำกับแผนกอื่น ระบบจะไม่สร้างแผนกให้</div>
+                <button type="submit" className="hidden" aria-hidden="true" tabIndex={-1} />
+              </fieldset>
+            </form>
+          </Modal>
+        )}
 
-            <div className="flex-1">
-              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">ชื่อโซน</label>
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-                placeholder="เช่น ของเล่น, เสื้อผ้า, เครื่องใช้ไฟฟ้า"
-                className="block w-full py-2.5 px-3.5 bg-white border border-slate-200 hover:border-blue-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 rounded-xl text-sm font-semibold text-slate-700 placeholder:text-slate-300 outline-none transition-all"
-              />
-            </div>
+        {/* ── เพิ่มโซน ── */}
+        <section className={ui.card + ' p-4 sm:p-5'}>
+          <h2 className="mb-4 font-black text-[#1a3a6e]">➕ เพิ่มโซนใหม่</h2>
+          <fieldset disabled={saving} className="grid min-w-0 gap-4 sm:grid-cols-[220px_1fr_auto] sm:items-end">
+            <Field label="แผนก *">
+              <select value={newBranchId} onChange={(e) => setNewBranchId(e.target.value)} className={ui.input + ' cursor-pointer'}>
+                <option value="">— เลือกแผนก —</option>
+                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </Field>
+            <Field label="ชื่อโซน *">
+              <input type="text" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAdd()} placeholder="เช่น ของเล่น, เสื้อผ้า, เครื่องใช้ไฟฟ้า" className={ui.input} />
+            </Field>
+            <button onClick={handleAdd} className={ui.button}>{saving ? 'กำลังบันทึก...' : '+ เพิ่มโซน'}</button>
+          </fieldset>
+        </section>
 
-            <div className="flex items-end">
-              <button
-                onClick={handleAdd}
-                disabled={saving}
-                className="w-full sm:w-auto px-6 py-2.5 bg-linear-to-r from-[#1a3a6e] to-[#2451a0] text-white rounded-xl font-black text-sm hover:opacity-90 active:scale-95 transition-all shadow-md shadow-blue-700/20 disabled:opacity-50"
-              >
-                {saving ? '...' : '+ เพิ่ม'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Zone List ── */}
-        <div id="zone-list" className="bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-blue-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <h2 className="text-sm font-black text-slate-700">
-              โซนทั้งหมด <span className="text-blue-500 ml-1">{filteredZones.length}</span>
-              <span className="text-xs text-slate-400 font-normal ml-2">(💡 สามารถคลิกเมาส์ค้างแล้วลากแถวเพื่อสลับลำดับได้)</span>
-            </h2>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-400">กรองแผนก:</span>
-              <div className="relative">
-                <select
-                  value={filterBranch}
-                  onChange={(e) => handleFilterChange(e.target.value)}
-                  className="pl-3 pr-7 py-1.5 bg-blue-50 border border-blue-100 rounded-lg text-xs font-bold text-blue-800 outline-none appearance-none cursor-pointer"
-                >
-                  <option value="all">ทุกแผนก</option>
-                  {branches.map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-                <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none text-blue-400 text-[10px]">▼</span>
-              </div>
-            </div>
+        {/* ── รายการโซน ── */}
+        <section id="zone-list" className={ui.card}>
+          <div className="flex flex-wrap items-center gap-3 border-b border-blue-100 p-4">
+            <select aria-label="กรองตามแผนก" value={filterBranch} onChange={(e) => handleFilterChange(e.target.value)} className={ui.input + ' cursor-pointer sm:max-w-56'}>
+              <option value="all">ทุกแผนก</option>
+              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+            <p className="ml-auto text-xs font-semibold text-slate-500">แสดง <b className="text-[#1a3a6e]">{filteredZones.length}</b> จาก {zones.length} โซน{filterBranch !== 'all' && <button type="button" className="ml-3 font-black text-blue-700 hover:underline" onClick={() => handleFilterChange('all')}>ล้างตัวกรอง</button>}</p>
           </div>
 
-          {loading ? (
-            <div className="p-12 text-center text-slate-400 text-sm font-bold">กำลังโหลด...</div>
-          ) : filteredZones.length === 0 ? (
-            <div className="p-12 text-center">
-              <span className="text-4xl block mb-2 opacity-20">🗂️</span>
-              <p className="text-slate-400 text-sm font-bold">ยังไม่มีโซน</p>
-              <p className="text-slate-300 text-xs mt-1">เพิ่มโซนด้านบนได้เลย</p>
-            </div>
+          {loading ? <Skeleton rows={5} /> : filteredZones.length === 0 ? (
+            <EmptyState icon="🗂️" title="ยังไม่มีโซน" hint="เพิ่มโซนจากฟอร์มด้านบนได้เลย" />
           ) : (
-            <div className="divide-y divide-slate-50">
+            <ul className="divide-y divide-blue-50">
               {pagedZones.map((zone, pageIdx) => {
                 const absoluteIdx = (visiblePage - 1) * ZONES_PER_PAGE + pageIdx;
-                const itemIndex = absoluteIdx + 1;
-
+                const editing = editId === zone.id;
                 return (
-                  <div
+                  <li
                     key={zone.id}
-                    draggable={editId !== zone.id}
+                    draggable={!editing}
                     onDragStart={(e) => handleDragStart(e, absoluteIdx)}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, absoluteIdx)}
-                    className={`p-4 flex items-center gap-4 transition-all ${
-                      editId !== zone.id ? 'cursor-grab active:cursor-grabbing hover:bg-blue-50/60' : 'bg-blue-50/20'
-                    }`}
+                    className={'flex items-center gap-4 px-4 py-3.5 transition-colors ' + (editing ? 'bg-blue-50/40' : 'cursor-grab hover:bg-blue-50/40 active:cursor-grabbing')}
                   >
-                    <div className="text-slate-300 hover:text-slate-500 shrink-0 select-none" title="คลิกค้างเพื่อลากเปลี่ยนลำดับ">
-                      ⠿
-                    </div>
+                    <span aria-hidden="true" title="ลากเพื่อเปลี่ยนลำดับ" className="shrink-0 select-none text-slate-300">⠿</span>
+                    <span className="w-8 shrink-0 text-center text-xs font-semibold tabular-nums text-slate-400">{absoluteIdx + 1}</span>
 
-                    <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
-                      <span className="text-base">🗂️</span>
-                    </div>
-
-                    {editId === zone.id ? (
-                      <input
-                        type="text"
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
+                    {editing ? (
+                      <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)} aria-label="ชื่อโซน"
                         onKeyDown={(e) => { if (e.key === 'Enter') handleEdit(zone.id); if (e.key === 'Escape') setEditId(null); }}
-                        autoFocus
-                        className="flex-1 py-1.5 px-3 border border-blue-400 rounded-lg text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-300"
-                      />
+                        autoFocus className={ui.input + ' flex-1'} />
                     ) : (
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-slate-800 text-sm">
-                          {itemIndex}. {zone.name}
-                        </p>
-                        <p className="text-xs text-blue-600 font-semibold mt-0.5">
-                          แผนก: {zone.branch?.name || '—'}
-                        </p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-black text-[#1a3a6e]">{zone.name}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">แผนก {zone.branch?.name || '—'}</p>
                       </div>
                     )}
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      {editId === zone.id ? (
+                    <div className="flex shrink-0 items-center gap-2">
+                      {editing ? (
                         <>
-                          <button onClick={() => handleEdit(zone.id)} disabled={saving}
-                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-black hover:bg-blue-700 active:scale-95 transition-all">
-                            บันทึก
-                          </button>
-                          <button onClick={() => setEditId(null)}
-                            className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-black hover:bg-slate-200 active:scale-95 transition-all">
-                            ยกเลิก
-                          </button>
+                          <button onClick={() => handleEdit(zone.id)} disabled={saving} className={ui.rowBtnPrimary}>บันทึก</button>
+                          <button onClick={() => setEditId(null)} className={ui.rowBtn}>ยกเลิก</button>
                         </>
                       ) : (
                         <>
-                          <button
-                            onClick={() => { setEditId(zone.id); setEditName(zone.name); }}
-                            className="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg text-xs font-black hover:bg-blue-100 active:scale-95 transition-all"
-                          >
-                            ✏️ แก้ไข
-                          </button>
-                          <button
-                            onClick={() => handleDelete(zone.id, zone.name)}
-                            className="px-3 py-1.5 bg-red-50 text-red-600 border border-red-100 rounded-lg text-xs font-black hover:bg-red-100 active:scale-95 transition-all"
-                          >
-                            🗑️ ลบ
-                          </button>
+                          <button onClick={() => { setEditId(zone.id); setEditName(zone.name); }} className={ui.rowBtn}>แก้ไข</button>
+                          <button onClick={() => handleDelete(zone.id, zone.name)} className={ui.rowBtnDanger}>ลบ</button>
                         </>
                       )}
                     </div>
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
 
-          {totalPages > 1 && (
-            <div className="px-5 py-4 bg-white border-t border-blue-100 flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-500">
-                หน้า {visiblePage} จาก {totalPages} ({filteredZones.length} โซน)
-              </span>
-              <div className="flex gap-2">
-                <button
-                  disabled={visiblePage === 1}
-                  onClick={() => setCurrentPage(visiblePage - 1)}
-                  className="px-4 py-2 bg-blue-50 text-blue-900 rounded-xl text-xs font-bold disabled:opacity-50 hover:bg-blue-100 transition-all"
-                >
-                  ก่อนหน้า
-                </button>
-                <button
-                  disabled={visiblePage === totalPages}
-                  onClick={() => setCurrentPage(visiblePage + 1)}
-                  className="px-4 py-2 bg-blue-50 text-blue-900 rounded-xl text-xs font-bold disabled:opacity-50 hover:bg-blue-100 transition-all"
-                >
-                  ถัดไป
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+          <Pagination page={visiblePage} totalPages={totalPages} total={filteredZones.length} unit="โซน" onChange={setCurrentPage} />
+        </section>
 
       </div>
     </div>
