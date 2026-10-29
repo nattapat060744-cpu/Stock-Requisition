@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import AdminNav from '@/components/AdminNav';
+import DepartmentCodeEditor from '@/components/DepartmentCodeEditor';
+import DepartmentCodeList from '@/components/DepartmentCodeList';
 
 interface Branch {
   id: string;
@@ -35,6 +36,9 @@ export default function AdminZonesPage() {
   const [savingBranch, setSavingBranch] = useState(false);
   const branchBusy = useRef(false);
   const [loadError, setLoadError] = useState('');
+  const [codeBranch,setCodeBranch]=useState<Branch|null>(null);
+  const [codeMessage,setCodeMessage]=useState('');
+  const [showCodes,setShowCodes]=useState(false);
 
   // form state
   const [newName, setNewName]       = useState('');
@@ -183,7 +187,6 @@ export default function AdminZonesPage() {
     <div className="min-h-screen bg-[#e8edf5] py-6 sm:py-8 px-3 sm:px-6 lg:px-8 text-slate-800">
       <div className="max-w-7xl mx-auto space-y-5">
 
-        <AdminNav activeHref="/admin/zones" />
 
         <div className="relative bg-white border border-blue-100/80 rounded-2xl overflow-hidden shadow-sm p-6">
           <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-[#1a3a6e] via-[#c8a230] to-[#1a3a6e]" />
@@ -196,19 +199,22 @@ export default function AdminZonesPage() {
           </div>
         </div>
 
+        {showCodes&&<DepartmentCodeList onClose={()=>setShowCodes(false)} onEdit={branch=>{setCodeMessage('');setCodeBranch(branch);}}/>}
+        {codeBranch&&<DepartmentCodeEditor branch={codeBranch} onClose={()=>setCodeBranch(null)} onSaved={setCodeMessage}/>}
+        {codeMessage&&<p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{codeMessage}</p>}
         {loadError && <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><span>{loadError}</span><button onClick={() => void loadData()} className="font-bold">ลองใหม่</button></div>}
         <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div><h2 className="font-black text-[#1a3a6e]">🏬 จัดการแผนก</h2><p className="mt-1 text-xs text-slate-500">ทั้งหมด {branches.length} แผนก · เพิ่มแผนกและดูโซนที่เกี่ยวข้อง</p></div>
+            <div><div><h2 className="font-black text-[#1a3a6e]">🏬 จัดการแผนก</h2><p className="mt-1 text-xs text-slate-500">ทั้งหมด {branches.length} แผนก · เพิ่มแผนกและดูโซนที่เกี่ยวข้อง</p></div><button type="button" onClick={()=>setShowCodes(true)} className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-900 hover:bg-blue-100">ดูรหัสทุกแผนก</button></div>
             <form className="flex gap-2 sm:w-96" onSubmit={(event) => { event.preventDefault(); void addBranch(); }}>
               <input aria-label="ชื่อแผนกใหม่" disabled={savingBranch || loading} value={branchName} onChange={(event) => setBranchName(event.target.value)} placeholder="ชื่อแผนกใหม่..." className="min-w-0 flex-1 rounded-xl border border-blue-100 bg-blue-50/30 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-300" />
               <button disabled={savingBranch || loading} className="shrink-0 rounded-xl bg-[#1a3a6e] px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{savingBranch ? 'กำลังบันทึก...' : '+ เพิ่มแผนก'}</button>
             </form>
           </div>
           <div className="mt-5 grid max-h-80 gap-3 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
-            {branches.map((branch) => <div key={branch.id} className="flex items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/30 p-3">
+            {branches.map((branch) => <div key={branch.id} className="flex flex-col items-start justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/30 p-3">
               <div className="min-w-0"><p className="break-words text-sm font-bold text-slate-800">{branch.name}</p><p className="mt-1 text-xs text-slate-500">{zones.filter((zone) => zone.branch_id === branch.id).length} โซน</p></div>
-              <div className="flex shrink-0 gap-2"><button onClick={() => { handleFilterChange(branch.id); document.getElementById('zone-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className="rounded-lg border border-blue-200 bg-white px-2 py-1.5 text-xs font-bold text-blue-800">ดูโซน</button><button disabled={savingBranch || saving} onClick={() => void removeBranch(branch)} className="rounded-lg border border-red-100 bg-red-50 px-2 py-1.5 text-xs font-bold text-red-600 disabled:opacity-50">ลบ</button></div>
+              <div className="flex shrink-0 flex-wrap justify-end gap-2"><button onClick={()=>{setCodeMessage('');setCodeBranch(branch);}} className="rounded-lg border border-blue-200 bg-white px-2 py-1.5 text-xs font-bold text-blue-800">ตั้ง / เปลี่ยนรหัส</button><button onClick={() => { handleFilterChange(branch.id); document.getElementById('zone-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className="rounded-lg border border-blue-200 bg-white px-2 py-1.5 text-xs font-bold text-blue-800">ดูโซน</button><button disabled={savingBranch || saving} onClick={() => void removeBranch(branch)} className="rounded-lg border border-red-100 bg-red-50 px-2 py-1.5 text-xs font-bold text-red-600 disabled:opacity-50">ลบ</button></div>
             </div>)}
             {!loading && branches.length === 0 && <p className="py-5 text-sm text-slate-400">ยังไม่มีแผนก เพิ่มแผนกก่อนสร้างโซน</p>}
           </div>

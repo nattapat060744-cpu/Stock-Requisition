@@ -28,12 +28,16 @@ export async function middleware(req: NextRequest) {
   if (!hasToken) {
     const token = randomToken()
     const newPath = `/${token}${pathname === '/' ? '' : pathname}`
-    return NextResponse.redirect(new URL(newPath, req.url))
+    const redirectUrl = req.nextUrl.clone()
+    redirectUrl.pathname = newPath
+    return NextResponse.redirect(redirectUrl)
   }
 
   // มี token แล้ว → rewrite ตัด token ออกแล้วส่งไปหน้าจริง
   const realPath = '/' + parts.slice(1).join('/')
-  return NextResponse.rewrite(new URL(realPath || '/', req.url))
+  const rewriteUrl = req.nextUrl.clone()
+  rewriteUrl.pathname = realPath || '/'
+  return NextResponse.rewrite(rewriteUrl)
 }
 
 export const config = {

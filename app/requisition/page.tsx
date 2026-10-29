@@ -1,6 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import {useSearchParams} from 'next/navigation';
+import Link from 'next/link';
+import {useDepartment} from '@/components/DepartmentAccess';
+import {requestError,validRequestLines} from '@/lib/requisitionRules';
 import { supabase } from '@/lib/supabase';
 
 interface Item {
@@ -21,9 +25,9 @@ interface Zone {
 }
 
 interface CartFormContentProps {
+  isEditing:boolean;
+  note:string; setNote:(value:string)=>void;
   branchName: string;
-  setBranchName: (val: string) => void;
-  branches: { id: string; name: string }[];
   zoneName: string;
   setZoneName: (val: string) => void;
   zones: Zone[];
@@ -42,9 +46,8 @@ interface CartFormContentProps {
 
 
 const CartFormContent = ({
+  isEditing,note,setNote,
   branchName,
-  setBranchName,
-  branches,
   zoneName,
   setZoneName,
   zones,
@@ -58,26 +61,12 @@ const CartFormContent = ({
   loading,
   cartBounce,
 }: CartFormContentProps) => (
-  <form onSubmit={handlePreSubmitCheck} className="h-full flex flex-col gap-4">
-    <div className="space-y-3 overflow-y-auto flex-1 pr-1">
-      {/* แผนก */}
+  <form onSubmit={handlePreSubmitCheck} className="h-full w-full min-w-0 flex flex-col gap-4">
+    <fieldset disabled={loading} className="m-0 w-full min-w-0 flex-1 space-y-3 border-0 p-0 pr-1 overflow-y-auto">
+      {/* แผนกอ้างอิงจากผู้ใช้ที่เข้าใช้งาน ไม่ใช่ช่องเลือก */}
       <div>
-        <label className="block text-[10px] font-black text-blue-700 uppercase tracking-[0.15em] mb-1.5">
-          แผนกที่ขอเบิก
-        </label>
-        <div className="relative">
-          <select
-            value={branchName}
-            onChange={(e) => { setBranchName(e.target.value); setZoneName(''); }}
-            className="block w-full py-2.5 pl-3.5 pr-9 bg-white border border-slate-200 hover:border-blue-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 rounded-xl text-sm font-semibold text-slate-700 outline-none transition-all appearance-none cursor-pointer shadow-sm"
-          >
-            <option value="">— เลือกแผนก —</option>
-            {branches.map((b) => (
-              <option key={b.id} value={b.name}>{b.name}</option>
-            ))}
-          </select>
-          <span className="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none text-blue-400 text-[10px]">▼</span>
-        </div>
+        <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.15em] text-blue-700">แผนกที่ขอเบิก</p>
+        <p className="w-full rounded-xl border border-blue-100 bg-blue-50/50 px-3.5 py-2.5 text-sm font-bold text-blue-900">{branchName}</p>
       </div>
 
       {/* โซน — โชว์เฉพาะแผนกจัดเรียง */}
@@ -117,6 +106,7 @@ const CartFormContent = ({
         />
       </div>
 
+      <label className="block text-xs font-bold text-blue-800">หมายเหตุใบเบิก<textarea maxLength={2000} rows={3} value={note} onChange={e=>setNote(e.target.value)} placeholder="เช่น ใช้สำหรับงานใด หรือรายละเอียดเพิ่มเติม" className="mt-2 w-full rounded-xl border border-blue-200 p-3 text-sm"/></label>
       {/* Divider */}
       <div className="flex items-center gap-2 py-1">
         <div className="flex-1 h-px bg-slate-100" />
@@ -137,7 +127,7 @@ const CartFormContent = ({
       </div>
 
       {/* รายการ */}
-      <div className="space-y-2 max-h-64 overflow-y-auto pr-0.5">
+      <div className="w-full min-w-0 space-y-2 max-h-64 overflow-y-auto pr-0.5">
         {cart.length === 0 ? (
           <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center gap-2">
             <span className="text-3xl opacity-20">🛒</span>
@@ -145,7 +135,7 @@ const CartFormContent = ({
           </div>
         ) : (
           cart.map((item) => (
-            <div key={item.id} className="flex items-center gap-2.5 bg-white p-2 border border-slate-100 rounded-xl hover:border-blue-100 transition-all group">
+            <div key={item.id} className="flex w-full min-w-0 items-center gap-2 bg-white p-2 border border-slate-100 rounded-xl hover:border-blue-100 transition-all group">
               <div className="w-9 h-9 bg-blue-50 rounded-lg shrink-0 flex items-center justify-center overflow-hidden border border-blue-50">
                 {item.image_url
                   ? <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
@@ -158,7 +148,7 @@ const CartFormContent = ({
               <div className="flex items-center bg-slate-50 border border-slate-200/80 rounded-lg shrink-0">
                 <button type="button" onClick={() => updateQuantity(item.id, -1)}
                   className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-blue-900 hover:bg-blue-50 rounded-md text-sm font-black transition-all active:scale-90">−</button>
-                <span className="w-7 text-center font-black text-xs text-slate-700">{item.quantity}</span>
+                <span className="min-w-7 px-1 text-center font-black text-xs tabular-nums text-slate-700">{item.quantity}</span>
                 <button type="button" onClick={() => updateQuantity(item.id, 1)}
                   className="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-blue-900 hover:bg-blue-50 rounded-md text-sm font-black transition-all active:scale-90">+</button>
               </div>
@@ -168,7 +158,7 @@ const CartFormContent = ({
           ))
         )}
       </div>
-    </div>
+    </fieldset>
 
     {/* Submit */}
     <button
@@ -179,7 +169,7 @@ const CartFormContent = ({
       {loading ? (
         <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /><span>กำลังประมวลผล...</span></>
       ) : (
-        <><span>📝</span><span>ส่งใบเบิก ({cart.length} รายการ)</span></>
+        <><span>📝</span><span>{isEditing?'บันทึกการแก้ไข':'ส่งใบเบิก'} ({cart.length} รายการ)</span></>
       )}
     </button>
   </form>
@@ -200,7 +190,14 @@ function buildPageNumbers(current: number, total: number): (number | '…')[] {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function RequisitionPage() {
+function RequisitionForm({editId}:{editId:string|null}) {
+  const department=useDepartment();
+  const [note,setNote]=useState('');
+  const [editVersion,setEditVersion]=useState<number|null>(null);
+  const [editReady,setEditReady]=useState(!editId);
+  const [editError,setEditError]=useState('');
+  const requestId=useRef<string|null>(null);
+  const submitBusy=useRef(false);
   const [items, setItems]               = useState<Item[]>([]);
   const [branches, setBranches]         = useState<{ id: string; name: string }[]>([]);
   const [allZones,setAllZones]=useState<(Zone&{branch_id:string})[]>([]);
@@ -208,7 +205,7 @@ export default function RequisitionPage() {
   const [senderName,setSenderName]=useState('');
   const [searchTerm, setSearchTerm]     = useState('');
   const [requesterName, setRequesterName] = useState('');
-  const [branchName, setBranchName]     = useState('');
+  const branchName = department.branch_name;
   const [zoneName, setZoneName]         = useState('');
   const zones=allZones.filter(zone=>zone.branch_id===branches.find(branch=>branch.name===branchName)?.id);
   const [cart, setCart]                 = useState<CartItem[]>([]);
@@ -251,15 +248,8 @@ export default function RequisitionPage() {
     currentPage * ITEMS_PER_PAGE,
   );
 
-  const warnStock = (item: Item, quantity: number) => {
-    if (item.stock_quantity != null && quantity > item.stock_quantity) {
-      alert('สินค้า ' + item.name + ' คงเหลือ ' + item.stock_quantity + ' ' + item.unit + ' แต่คุณกำลังสั่ง ' + quantity + ' กรุณาลดจำนวน');
-      return true;
-    }
-    return false;
-  };
   const addToCart = (item: Item) => {
-    if (loading || warnStock(item, (cart.find((c) => c.id === item.id)?.quantity ?? 0) + 1)) return;
+    if (loading) return;
     setClickedItemId(item.id);
     setCartBounce(true);
     setTimeout(() => setClickedItemId(null), 800);
@@ -280,7 +270,7 @@ export default function RequisitionPage() {
     const current = cart.find((item) => item.id === id);
     if (!current) return;
     const quantity = Math.max(1, current.quantity + amount);
-    if (amount > 0 && warnStock(items.find((item) => item.id === id) ?? current, quantity)) return;
+    if(quantity>2147483647)return;
     setCart((prev) => prev.map((item) => item.id === id ? { ...item, quantity } : item));
   };
 
@@ -297,88 +287,53 @@ export default function RequisitionPage() {
     if (zones.length>0 && !zones.some(zone=>zone.name===zoneName)) { alert('กรุณาเลือกโซน'); return; }
     if (!requesterName.trim()) { alert('กรุณากรอกชื่อผู้เบิก'); return; }
     if (cart.length === 0)    { alert('กรุณาเลือกสินค้าอย่างน้อย 1 รายการ'); return; }
-    if (cart.some((item) => warnStock(items.find((latest) => latest.id === item.id) ?? item, item.quantity))) return;
+    if(!editReady||editError){alert(editError||'กรุณารอโหลดใบเบิก');return;}
+    if(!validRequestLines(cart.map(item=>({item_id:item.id,quantity:item.quantity})))){alert('จำนวนสินค้าต้องเป็นจำนวนเต็มบวก และไม่มีรายการซ้ำ');return;}
     setIsCartOpen(false);
     setShowConfirmModal(true);
   };
 
   const handleConfirmSubmit = async () => {
-    setShowConfirmModal(false);
-    if (loading) return;
-    setLoading(true);
-    const { data: available, error: stockError } = await supabase.from('items')
-      .select('id, name, unit, image_url, stock_quantity, price, is_active').in('id', cart.map((item) => item.id));
-    if (stockError || !available) {
-      alert('ตรวจสอบจำนวนคงเหลือไม่สำเร็จ กรุณาลองอีกครั้ง'); setLoading(false); return;
-    }
-    setItems((prev) => prev.map((item) => available.find((latest) => latest.id === item.id) ?? item));
-    const stockWarnings = cart.flatMap((item) => {
-      const latest = available.find((row) => row.id === item.id);
-      if (!latest || !latest.is_active) return [item.name + ' ไม่เปิดให้เบิกแล้ว'];
-      if (latest.stock_quantity != null && item.quantity > latest.stock_quantity) {
-        return [item.name + ': สั่ง ' + item.quantity + ' แต่คงเหลือ ' + latest.stock_quantity + ' ' + item.unit];
-      }
-      return [];
-    });
-    if (stockWarnings.length) {
-      alert('จำนวนสินค้าไม่เพียงพอ กรุณาแก้ไขรายการก่อนส่งใบเบิก:\n' + stockWarnings.join('\n'));
-      setIsCartOpen(true); setLoading(false); return;
-    }
-
-    const { data: reqData, error: reqError } = await supabase
-      .from('requisitions')
-      .insert([{
-        branch_name: branchName.trim(),
-        zone_name: zones.length>0 ? zoneName.trim() : null,
-        ...((zones.length>0||branchName==='จัดเรียง')?{sender_name:senderName.trim()}:{}),
-        requester_name: requesterName.trim(),
-        status: 'pending',
-        total_price: 0,
-      }])
-      .select('id')
-      .single();
-
-    if (reqError || !reqData) {
-      alert(`เกิดข้อผิดพลาด: ${reqError?.message || 'ไม่สามารถสร้างใบเบิกได้'}`);
-      setLoading(false);
-      return;
-    }
-
-    const dbItems = available;
-    const detailRows = cart.map((item) => ({
-      requisition_id: reqData.id,
-      item_id: item.id,
-      quantity: item.quantity,
-      price_at_time: dbItems?.find((d) => d.id === item.id)?.price || 0,
-    }));
-
-    const { error: detailError } = await supabase.from('requisition_details').insert(detailRows);
-    setLoading(false);
-
-    if (detailError) {
-      alert('เกิดข้อผิดพลาดในการบันทึกรายการ: ' + detailError.message);
-    } else {
-      alert('ส่งคำขอเบิกสินค้าเรียบร้อยแล้ว!');
-      setCart([]);
-      setSearchTerm('');
-      setRequesterName('');setSenderName('');
-      setBranchName('');
-      setZoneName('');
-      setCurrentPage(1);
-    }
+    if(submitBusy.current||!editReady||editError)return;
+    submitBusy.current=true;setShowConfirmModal(false);setLoading(true);
+    try {
+      if(!requestId.current)requestId.current=editId||crypto.randomUUID();
+      const {error}=await supabase.rpc('save_department_requisition',{
+        p_token:department.token,p_id:requestId.current,p_version:editId?editVersion:null,
+        p_requester:requesterName.trim(),p_zone:zones.length?zoneName:null,p_sender:senderName.trim(),p_note:note,
+        p_lines:cart.map(item=>({item_id:item.id,quantity:item.quantity}))
+      });
+      if(error)throw error;
+      alert(editId?'บันทึกการแก้ไขใบเบิกแล้ว':'ส่งใบเบิกเรียบร้อยแล้ว');
+      setCart([]);setNote('');setSearchTerm('');setCurrentPage(1);requestId.current=null;
+      if(editId)window.location.assign('/requisition/my-requests');
+    } catch(error){alert(requestError(error));} finally {setLoading(false);submitBusy.current=false;}
   };
 
+  useEffect(()=>{
+    let alive=true;const id=editId;
+    if(!id)return;
+    void supabase.rpc('department_requisition',{p_token:department.token,p_id:id}).then(({data,error})=>{
+      if(!alive)return;
+      if(error||!data){setEditError(requestError(error));return;}
+      if(data.status!=='pending'){setEditError('ใบเบิกนี้ตรวจสอบแล้ว ไม่สามารถแก้ไขได้');return;}
+      setEditVersion(data.version);setRequesterName(data.requester_name);setSenderName(data.sender_name||'');setZoneName(data.zone_name||'');setNote(data.note||'');
+      setCart(data.requisition_details.map((d:{item_id:string;quantity:number;items:{name:string;unit:string;image_url:string|null}|null})=>({id:d.item_id,name:d.items?.name||'สินค้าเดิม',unit:d.items?.unit||'',image_url:d.items?.image_url||null,stock_quantity:null,quantity:d.quantity})));
+      requestId.current=id;setEditReady(true);
+    });return()=>{alive=false;};
+  },[department.token,editId]);
+
   const cartFormProps = {
-    branchName, setBranchName:(value:string)=>{setBranchName(value);setZoneName('');setSenderName('');},
+    isEditing:Boolean(editId),note,setNote,
+    branchName,
     senderName,setSenderName,
-    branches,
     zoneName, setZoneName,
     zones,
     requesterName, setRequesterName,
     handlePreSubmitCheck,
     totalCartItems,
     cart, updateQuantity, removeFromCart,
-    loading, cartBounce,
+    loading:loading||!editReady||Boolean(editError), cartBounce,
   };
 
   return (
@@ -423,6 +378,9 @@ export default function RequisitionPage() {
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-100 bg-white p-4"><p className="font-bold text-blue-900">{editId?'แก้ไขใบเบิกที่รออนุมัติ':'สร้างใบเบิกใหม่'} · {department.branch_name}</p></div>
+        {editError&&<p role="alert" className="rounded-xl bg-red-50 p-4 text-red-700">{editError} <Link href="/requisition/my-requests" className="underline">กลับประวัติ</Link></p>}
+        {!editReady&&!editError&&<p role="status">กำลังโหลดใบเบิก...</p>}
         <div className="flex flex-col lg:flex-row gap-5 items-start">
 
           {/* ── Left: items ── */}
@@ -465,7 +423,7 @@ export default function RequisitionPage() {
                 </div>
               ) : (
                 pagedItems.map((item) => {
-                  const soldOut = item.stock_quantity === 0;
+
                   const isClicked = clickedItemId === item.id;
                   const inCart    = cart.find((c) => c.id === item.id);
                   return (
@@ -481,15 +439,10 @@ export default function RequisitionPage() {
                     >
                       <div className="relative aspect-square bg-slate-50 overflow-hidden">
                         {item.image_url ? (
-                          <img src={item.image_url} alt={item.name} className={"w-full h-full object-cover transition-transform duration-300 " + (soldOut ? "grayscale opacity-40" : "group-hover:scale-105")} />
+                          <img src={item.image_url} alt={item.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <span className="text-4xl opacity-20">📦</span>
-                          </div>
-                        )}
-                        {soldOut && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-slate-200/40">
-                            <span className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white bg-red-500/85 text-xl font-black text-white shadow-lg">หมด</span>
                           </div>
                         )}
                         {inCart && (
@@ -511,7 +464,7 @@ export default function RequisitionPage() {
                         {item.stock_quantity != null && <p className="text-[10px] font-semibold text-slate-500">คงเหลือ {item.stock_quantity.toLocaleString('th-TH')} {item.unit}</p>}
                         <button
                           type="button"
-                          disabled={soldOut || loading}
+                          disabled={loading}
                           onClick={() => addToCart(item)}
                           className={`w-full py-2 rounded-xl font-black text-xs active:scale-95 transition-all border disabled:bg-slate-100 disabled:border-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed ${
                             isClicked
@@ -521,7 +474,7 @@ export default function RequisitionPage() {
                               : 'bg-blue-50 border-blue-100 text-blue-900 hover:bg-blue-500 hover:text-white hover:border-blue-500 hover:shadow-md hover:shadow-blue-200/50'
                           }`}
                         >
-                          {soldOut ? 'สินค้าหมด' : isClicked ? '✓ เพิ่มแล้ว' : inCart ? `+ เพิ่ม (${inCart.quantity})` : '+ เพิ่มในตะกร้า'}
+                          {isClicked ? '✓ เพิ่มแล้ว' : inCart ? `+ เพิ่ม (${inCart.quantity})` : '+ เพิ่มในตะกร้า'}
                         </button>
                       </div>
                     </div>
@@ -563,7 +516,7 @@ export default function RequisitionPage() {
           </div>
 
           {/* ── Right: Desktop cart ── */}
-          <div className="hidden lg:block lg:w-80 shrink-0">
+          <div className="hidden w-full min-w-0 max-w-full lg:block lg:w-80 shrink-0">
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden lg:sticky lg:top-6">
               <div className="bg-linear-to-r from-[#1a3a6e] to-[#2451a0] px-5 py-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -671,6 +624,7 @@ export default function RequisitionPage() {
                 <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
                   รายการสินค้า ({totalCartItems} ชิ้น / {cart.length} รายการ)
                 </span>
+                {note&&<p className="mb-3 whitespace-pre-wrap text-sm text-blue-900">หมายเหตุ: {note}</p>}
                 <div className="rounded-xl overflow-hidden divide-y divide-slate-100 border border-slate-100 max-h-60 overflow-y-auto shadow-sm">
                   {cart.map((item) => (
                     <div key={item.id} className="p-3 flex items-center justify-between bg-white hover:bg-slate-50 transition-colors">
@@ -698,7 +652,7 @@ export default function RequisitionPage() {
               </button>
               <button type="button" onClick={handleConfirmSubmit}
                 className="w-full bg-linear-to-r from-[#1a3a6e] to-[#112654] text-white py-3 rounded-xl font-black hover:opacity-90 shadow-lg shadow-blue-200 active:scale-[0.98] transition-all text-sm">
-                ยืนยันส่งใบเบิก ✓
+                {editId?'ยืนยันบันทึกการแก้ไข ✓':'ยืนยันส่งใบเบิก ✓'}
               </button>
             </div>
           </div>
@@ -707,3 +661,6 @@ export default function RequisitionPage() {
     </div>
   );
 }
+
+function RequisitionRoute(){const id=useSearchParams().get('edit');return <RequisitionForm key={id||'new'} editId={id}/>;}
+export default function RequisitionPage(){return <Suspense fallback={<p className="p-10 text-center">กำลังโหลดใบเบิก...</p>}><RequisitionRoute/></Suspense>;}

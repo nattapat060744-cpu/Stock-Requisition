@@ -1,6 +1,5 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
-import AdminNav from '@/components/AdminNav';
 import ReportPagination from '@/components/ReportPagination';
 import {supabase} from '@/lib/supabase';
 import {exportReportExcel} from '@/lib/reportExports';
@@ -117,7 +116,6 @@ export default function StocktakePage(){
  return (
   <main className="min-h-screen bg-[#e8edf5] p-3 text-slate-800 sm:p-6">
    <div className="mx-auto max-w-[1500px] space-y-5">
-    <AdminNav activeHref="/admin/inventory"/>
     <section className="rounded-2xl border border-blue-100 bg-white p-5">
      <div className="flex flex-wrap justify-between gap-3">
       <div>

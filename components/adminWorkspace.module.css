@@ -1,0 +1,8 @@
+@media screen {
+ .workspace { background:#f0f4f8; min-height:calc(100dvh - 145px); }
+ .workspace > div, .workspace > main { min-height:calc(100dvh - 145px); padding:24px clamp(16px,3vw,32px); background:transparent; }
+ .workspace > div > div:first-child, .workspace > main > div:first-child { width:100%; max-width:1600px; margin-inline:auto; }
+ .workspace input:not([type=checkbox]):not([type=radio]), .workspace select, .workspace textarea { min-width:0; }
+ .workspace button:focus-visible, .workspace a:focus-visible { outline:2px solid #2563eb; outline-offset:3px; }
+}
+@media print { .workspace { display:contents; } }

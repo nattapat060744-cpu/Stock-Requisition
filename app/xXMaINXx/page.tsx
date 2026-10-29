@@ -38,6 +38,7 @@ export default function Home() {
         </div>
 
         {/* Action buttons */}
+        <Link href="/requisition/my-requests" className="font-bold text-[#1a3a6e] underline">ประวัติการเบิกของแผนก / แก้ไขใบเบิก</Link>
         <div className="flex flex-col gap-3 w-full">
           <Link
             href="/requisition"

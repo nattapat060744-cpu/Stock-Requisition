@@ -2,11 +2,13 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import RequestedItems from '@/components/RequestedItems';
+import {requestError,validRequestLines} from '@/lib/requisitionRules';
 import { useNewRequisitions } from '@/hooks/useNewRequisitions';
-import { AdminNavView } from '@/components/AdminNav';
 
 interface Requisition {
   id: string;
+  version:number;note?:string;admin_note?:string;requested_items?:RequisitionDetail[];
   created_at: string;
   branch_name: string;
   requester_name: string;
@@ -44,6 +46,13 @@ export default function AdminRequisitionsPage() {
   const [loading, setLoading]              = useState(true);
   const [selectedReq, setSelectedReq]      = useState<Requisition | null>(null);
   const [details, setDetails]              = useState<RequisitionDetail[]>([]);
+  const [originalDetails,setOriginalDetails]=useState<RequisitionDetail[]>([]);
+  const [adminNote,setAdminNote]=useState('');
+  const [saving,setSaving]=useState(false);
+  const [detailError,setDetailError]=useState('');
+  const reviewBusy=useRef(false);
+  const detailRequest=useRef(0);
+  const listRequest=useRef(0);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [modalMode, setModalMode]          = useState<'review' | 'view'>('review');
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
@@ -117,6 +126,7 @@ export default function AdminRequisitionsPage() {
   }
 
   const fetchRequisitions = useCallback(async (page = currentPage) => {
+    const sequence=++listRequest.current;
     setLoading(true);
     const from = (page - 1) * PAGE_SIZE;
     const to   = from + PAGE_SIZE - 1;
@@ -136,6 +146,7 @@ export default function AdminRequisitionsPage() {
     }
 
     const { data, count, error } = await query;
+    if(sequence!==listRequest.current)return;
     if (error) console.error('Error fetching requisitions:', error);
     setRequisitions(data ?? []);
     setTotalCount(count ?? 0);
@@ -143,10 +154,12 @@ export default function AdminRequisitionsPage() {
   }, [currentPage, filterStatus, searchTerm]);
 
   useEffect(() => {
-    fetchRequisitions(currentPage);
-  }, [currentPage, filterStatus, searchTerm]);
+    let alive=true;
+    void Promise.resolve().then(()=>{if(alive)return fetchRequisitions(currentPage);});
+    return()=>{alive=false;listRequest.current++;};
+  }, [currentPage, fetchRequisitions]);
 
-  useEffect(() => { fetchCounts(); }, []);
+  useEffect(() => { void Promise.resolve().then(()=>fetchCounts()); }, []);
 
   useEffect(() => {
     if (newSinceRef.current === null) {
@@ -164,7 +177,7 @@ export default function AdminRequisitionsPage() {
   }, [markSeen]);
 
   useEffect(() => {
-    if (newCount > 0) fetchCounts();
+    if (newCount > 0) void Promise.resolve().then(()=>fetchCounts());
   }, [newCount]);
 
   const handleSeeNew = () => {
@@ -196,28 +209,26 @@ export default function AdminRequisitionsPage() {
   }, {} as Record<string, Requisition[]>);
 
   const handleViewDetails = async (req: Requisition, mode: 'review' | 'view') => {
-    setOpenedIds((ids) => new Set(ids).add(req.id));
-    setSelectedReq(req);
-    setModalMode(mode);
-    setLoadingDetails(true);
-    const { data, error } = await supabase
-      .from('requisition_details')
-      .select('id, item_id, quantity, price_at_time, items (id, name, unit, price, image_url)')
-      .eq('requisition_id', req.id);
-    if (data) setDetails(data as unknown as RequisitionDetail[]);
-    if (error) console.error(error);
+    if(reviewBusy.current)return;
+    const sequence=++detailRequest.current;
+    setOpenedIds(ids=>new Set(ids).add(req.id));setSelectedReq(req);setModalMode(mode==='review'&&req.status==='pending'?'review':'view');
+    setLoadingDetails(true);setDetailError('');setDetails([]);setOriginalDetails([]);setAdminNote('');
+    const {data,error}=await supabase.from('requisitions').select('*,requisition_details(id,item_id,quantity,price_at_time,items(id,name,unit,price,image_url))').eq('id',req.id).single();
+    if(sequence!==detailRequest.current)return;
+    if(error||!data){setDetailError(requestError(error));}
+    else {setSelectedReq(data);setAdminNote(data.admin_note||'');setModalMode(mode==='review'&&data.status==='pending'?'review':'view');const rows=data.requisition_details as unknown as RequisitionDetail[];setDetails(rows);setOriginalDetails(rows);}
     setLoadingDetails(false);
   };
 
   // เลือกสินค้าทดแทนจาก Pop-up
   const handleSelectReplacementItem = (newItem: MasterItem) => {
-    if (!activeDetailId) return;
+    if (!activeDetailId || reviewBusy.current) return;
     setDetails(prev => prev.map(d => {
       if (d.id !== activeDetailId) return d;
       return {
         ...d,
         item_id: newItem.id,
-        price_at_time: newItem.price ?? d.price_at_time,
+        price_at_time: originalDetails.find(line=>line.item_id===newItem.id)?.price_at_time ?? newItem.price ?? d.price_at_time,
         items: {
           id: newItem.id,
           name: newItem.name,
@@ -232,7 +243,8 @@ export default function AdminRequisitionsPage() {
     setItemSearchTerm('');
   };
 
-  const handleDetailChange = (detailId: string, value: any) => {
+  const handleDetailChange = (detailId: string, value: string) => {
+    if(reviewBusy.current)return;
     setDetails(prev => prev.map(d => {
       if (d.id !== detailId) return d;
       return { ...d, quantity: Math.max(1, Number(value)) };
@@ -240,61 +252,22 @@ export default function AdminRequisitionsPage() {
   };
 
   const handleDeleteDetail = (detailId: string) => {
-    if (!window.confirm('ต้องการลบรายการสินค้านี้ออกจากใบเบิก?')) return;
+    if(reviewBusy.current)return;
+    if (!window.confirm('ตัดรายการนี้ออกจากการอนุมัติ? ยังเก็บรายการที่ขอไว้ในประวัติ')) return;
     setDetails(prev => prev.filter(d => d.id !== detailId));
   };
 
-  const handleApproveWithEdits = async (reqId: string) => {
-    if (!window.confirm('ยืนยันการบันทึกการแก้ไขและอนุมัติใบเบิกนี้?')) return;
-
-    for (const d of details) {
-      const updatePayload: any = {
-        quantity: d.quantity,
-        price_at_time: d.price_at_time
-      };
-      if (d.item_id) {
-        updatePayload.item_id = d.item_id;
-      } else if (d.items?.id) {
-        updatePayload.item_id = d.items.id;
-      }
-
-      const { error: detailError } = await supabase
-        .from('requisition_details')
-        .update(updatePayload)
-        .eq('id', d.id);
-
-      if (detailError) {
-        alert(`เกิดข้อผิดพลาดในการอัปเดตรายละเอียดสินค้า: ${detailError.message}`);
-        return;
-      }
-    }
-
-    const { error: statusError } = await supabase
-      .from('requisitions')
-      .update({ status: 'approved' })
-      .eq('id', reqId);
-
-    if (statusError) {
-      alert(`เกิดข้อผิดพลาดในการเปลี่ยนสถานะ: ${statusError.message}`);
-    } else {
-      alert('บันทึกการแก้ไขและอนุมัติใบเบิกสำเร็จ!');
-      setSelectedReq(null);
-      await Promise.all([fetchRequisitions(currentPage), fetchCounts()]);
-    }
-  };
-
-  const handleUpdateStatus = async (id: string, newStatus: 'pending' | 'approved' | 'rejected') => {
-    const label =
-      newStatus === 'approved' ? 'อนุมัติ' :
-      newStatus === 'rejected' ? 'ปฏิเสธ' : 'ยกเลิกการอนุมัติ';
-    if (!window.confirm(`ยืนยันการ "${label}" ใบเบิกนี้?`)) return;
-    const { error } = await supabase.from('requisitions').update({ status: newStatus }).eq('id', id);
-    if (error) {
-      alert(`เกิดข้อผิดพลาด: ${error.message}`);
-    } else {
-      setSelectedReq(null);
-      await Promise.all([fetchRequisitions(currentPage), fetchCounts()]);
-    }
+  const submitReview = async (status:'approved'|'rejected') => {
+    if(reviewBusy.current||loadingDetails||detailError||!selectedReq)return;
+    const lines=details.map(d=>({item_id:d.item_id||d.items?.id||'',quantity:d.quantity}));
+    if(status==='approved'&&!validRequestLines(lines)){alert('ต้องมีสินค้าอย่างน้อย 1 รายการ จำนวนเต็มบวก และไม่มีรายการซ้ำ หากไม่ให้เบิกทั้งหมดให้กดปฏิเสธใบเบิก');return;}
+    if(!window.confirm(status==='approved'?'ยืนยันอนุมัติรายการที่เหลือ พร้อมบันทึกผลตรวจสอบ?':'ยืนยันปฏิเสธใบเบิกนี้?'))return;
+    reviewBusy.current=true;setSaving(true);
+    try {
+      const {error}=await supabase.rpc('review_requisition',{p_id:selectedReq.id,p_version:selectedReq.version,p_status:status,p_admin_note:adminNote,p_lines:lines});
+      if(error)throw error;
+      setSelectedReq(null);await Promise.all([fetchRequisitions(currentPage),fetchCounts()]);
+    }catch(error){alert(requestError(error));}finally{setSaving(false);reviewBusy.current=false;}
   };
 
   const goToPage = (p: number) => {
@@ -346,7 +319,6 @@ export default function AdminRequisitionsPage() {
     <div className="min-h-screen bg-[#e8edf5] py-6 sm:py-8 px-3 sm:px-6 lg:px-8 text-slate-800">
       <div className="max-w-6xl mx-auto space-y-5">
 
-        <AdminNavView activeHref="/admin/requisitions" newCount={newCount} onRequisitionsClick={handleSeeNew} />
 
         <div className="bg-white p-5 rounded-2xl shadow-sm shadow-blue-100/50 border border-blue-100 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -471,15 +443,6 @@ export default function AdminRequisitionsPage() {
                           </td>
                           <td className="p-3 text-right whitespace-nowrap">
                             <div className="inline-flex items-center justify-end gap-1.5">
-                              {/* ปุ่มดินสอกลมกะทัดรัด ไม่ดันตารางล้น */}
-                              <button
-                                onClick={() => handleViewDetails(req, 'review')}
-                                className="w-8 h-8 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 flex items-center justify-center text-xs font-bold transition-all active:scale-95 shrink-0"
-                                title="แก้ไข/เปลี่ยนสินค้าในใบเบิก"
-                              >
-                                ✏️
-                              </button>
-
                               {req.status === 'pending' ? (
                                 <button
                                   onClick={() => handleViewDetails(req, 'review')}
@@ -573,26 +536,28 @@ export default function AdminRequisitionsPage() {
 
       {/* Detail Modal */}
       {selectedReq && (
-        <div className="fixed inset-0 bg-[#1a3a6e]/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl shadow-blue-200/50 overflow-hidden border border-blue-100">
-            <div className="bg-linear-to-r from-[#1a3a6e] to-[#112654] text-white p-5 flex items-start justify-between">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="review-dialog-title" className="flex max-h-[calc(100dvh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-2xl">
+            <div className="shrink-0 bg-[#1a3a6e] text-white p-5 flex items-start justify-between gap-4">
               <div>
-                <h3 className="font-black text-base tracking-tight">
-                  {modalMode === 'review' ? '📋 ตรวจสอบและแก้ไขใบเบิก (เปลี่ยนสินค้าทดแทน)' : '📄 รายละเอียดใบเบิก'}
+                <h3 id="review-dialog-title" className="font-black text-lg tracking-tight">
+                  {modalMode === 'review' ? '📋 ตรวจสอบใบเบิก' : '📄 รายละเอียดใบเบิก'}
                 </h3>
                 <p className="text-sm text-blue-200 mt-1 font-semibold">
                   {selectedReq.branch_name} · {selectedReq.requester_name}
                 </p>
               </div>
               <button
-                onClick={() => setSelectedReq(null)}
+                disabled={saving}
+                onClick={() => {detailRequest.current++;setSelectedReq(null);}}
                 className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white font-bold text-lg transition-all"
               >
                 ×
               </button>
             </div>
 
-            <div className="p-5 max-h-[60vh] overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+              {detailError&&<p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-red-700">{detailError}</p>}
               {loadingDetails ? (
                 <div className="flex justify-center py-10">
                   <div className="w-8 h-8 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin" />
@@ -626,6 +591,10 @@ export default function AdminRequisitionsPage() {
                     </div>
                   </div>
 
+                  <p className="whitespace-pre-wrap break-words rounded-xl border border-blue-100 p-3 text-sm"><strong>หมายเหตุใบเบิก:</strong> {selectedReq.note||'—'}</p>
+                  {modalMode==='review'?<label className="block text-sm font-bold text-blue-900">หมายเหตุผู้ตรวจสอบ<textarea disabled={saving} maxLength={2000} rows={3} value={adminNote} onChange={e=>setAdminNote(e.target.value)} placeholder="เช่น ตัดรายการที่ไม่ให้เบิก หรือเหตุผลไม่อนุมัติ" className="mt-2 w-full rounded-xl border border-blue-200 p-3 font-normal"/></label>:<p className="whitespace-pre-wrap break-words text-sm"><strong>หมายเหตุผู้ตรวจสอบ:</strong> {selectedReq.admin_note||'—'}</p>}
+                  <RequestedItems original={selectedReq.requested_items} current={details} status={selectedReq.status}/>
+                  {modalMode==='review'&&originalDetails.some(d=>!details.some(x=>x.id===d.id))&&<div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm"><strong>รายการที่ตัดออก (จะเก็บในประวัติ)</strong>{originalDetails.filter(d=>!details.some(x=>x.id===d.id)).map(d=><div key={d.id} className="mt-2 flex justify-between gap-3"><span>{d.items?.name} · {d.quantity} {d.items?.unit}</span><button disabled={saving} type="button" onClick={()=>setDetails(prev=>[...prev,d])} className="font-bold text-blue-800">คืนรายการ</button></div>)}</div>}
                   <table className="w-full text-left text-sm border-collapse">
                     <thead>
                       <tr className="border-b-2 border-blue-100 text-blue-700">
@@ -686,7 +655,10 @@ export default function AdminRequisitionsPage() {
                             {modalMode === 'review' ? (
                               <input
                                 type="number"
+                                disabled={saving}
                                 min="1"
+                                max="2147483647"
+                                step="1"
                                 value={d.quantity}
                                 onChange={(e) => handleDetailChange(d.id, e.target.value)}
                                 className="w-20 h-9 text-center font-black text-blue-900 border border-blue-200 rounded-lg bg-white outline-none focus:ring-2 focus:ring-blue-400"
@@ -730,29 +702,24 @@ export default function AdminRequisitionsPage() {
               )}
             </div>
 
-            <div className="p-4 bg-blue-50/40 border-t border-blue-100 flex gap-2">
+            <div className="shrink-0 border-t border-blue-100 bg-slate-50 p-4 flex flex-wrap gap-3">
               {modalMode === 'review' ? (
                 <>
                   <button
-                    onClick={() => handleUpdateStatus(selectedReq.id, 'rejected')}
+                    disabled={saving||loadingDetails||Boolean(detailError)}
+                    onClick={() => void submitReview('rejected')}
                     className="flex-1 border border-red-200 text-red-600 py-3 rounded-xl text-sm font-bold hover:bg-red-50 transition-all active:scale-95"
                   >
                     ❌ ปฏิเสธใบเบิก
                   </button>
                   <button
-                    onClick={() => handleApproveWithEdits(selectedReq.id)}
+                    disabled={saving||loadingDetails||Boolean(detailError)}
+                    onClick={() => void submitReview('approved')}
                     className="flex-1 bg-linear-to-r from-blue-700 to-blue-800 text-white py-3 rounded-xl text-sm font-bold hover:from-blue-800 hover:to-blue-900 transition-all shadow-md shadow-blue-200 active:scale-95"
                   >
-                    ✅ บันทึกแก้ไข & อนุมัติ
+                    {saving?'กำลังบันทึก...':'✅ อนุมัติรายการที่เลือก'}
                   </button>
                 </>
-              ) : selectedReq.status === 'approved' ? (
-                <button
-                  onClick={() => handleUpdateStatus(selectedReq.id, 'pending')}
-                  className="w-full bg-amber-400 text-white py-3 rounded-xl text-sm font-bold hover:bg-amber-500 transition-all active:scale-95"
-                >
-                  ↩️ ยกเลิกการอนุมัติ
-                </button>
               ) : (
                 <button
                   onClick={() => setSelectedReq(null)}

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import POProductPicker from '@/components/POProductPicker';
-import AdminNav from '@/components/AdminNav';
 import { supabase } from '@/lib/supabase';
 import { importPORows, numberValue, validatePOLines, type POItem, type POLineDraft } from '@/lib/purchaseOrders';
 
@@ -28,16 +27,17 @@ const message = (error: unknown) => error && typeof error === 'object' && 'messa
 function Field({ label, children }: { label: string; children: ReactNode }) {
  return <label className="block space-y-1.5"><span className="text-xs font-bold text-blue-800">{label}</span>{children}</label>;
 }
-function Modal({ title, onClose, busy, children, footer }: { title: string; onClose: () => void; busy: boolean; children: ReactNode; footer: ReactNode }) {
+function Modal({ title, onClose, busy, children, footer, pinned, fillBody=false }: { title: string; onClose: () => void; busy: boolean; children: ReactNode; footer: ReactNode; pinned?:ReactNode; fillBody?:boolean }) {
  const ref = useRef<HTMLDialogElement>(null);
  useEffect(() => { const dialog = ref.current; dialog?.showModal(); return () => dialog?.close(); }, []);
  return <dialog ref={ref} onCancel={(event) => { event.preventDefault(); if (!busy) onClose(); }} aria-label={title}
   className="m-auto w-[calc(100%-2rem)] max-w-[1600px] max-h-[calc(100dvh-2rem)] overflow-hidden rounded-2xl border border-blue-100 bg-white p-0 text-slate-800 shadow-2xl backdrop:bg-slate-900/50">
-  <div className="flex max-h-[calc(100dvh-2rem)] flex-col">
+  <div className={"flex max-h-[calc(100dvh-2rem)] flex-col "+(fillBody?"h-[calc(100dvh-2rem-2px)]":"")}>
    <div className="flex shrink-0 items-center justify-between gap-3 border-b border-blue-100 bg-[#1a3a6e] p-5 text-white">
     <h2 className="text-lg font-black">{title}</h2><button disabled={busy} onClick={onClose} aria-label="ปิดหน้าต่าง" className="h-8 w-8 rounded-full bg-white/15 text-xl disabled:opacity-50">×</button>
    </div>
-   <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">{children}</div>
+   {pinned&&<div data-po-pinned className="max-h-[50dvh] shrink-0 overflow-y-auto border-b border-blue-100 bg-white px-5 py-4 sm:px-6">{pinned}</div>}
+   <div data-po-body className={fillBody?"flex min-h-0 flex-1 flex-col overflow-hidden p-5 sm:p-6":"min-h-0 flex-1 overflow-y-auto p-5 sm:p-6"}>{children}</div>
    <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-blue-100 bg-blue-50/40 p-4">{footer}</div>
   </div>
  </dialog>;
@@ -199,7 +199,6 @@ export default function PurchaseOrdersPage() {
 
  return <div className="min-h-screen bg-[#e8edf5] px-3 py-6 text-slate-800 sm:px-6">
   <div className="mx-auto max-w-[1600px] space-y-5">
-   <AdminNav activeHref="/admin/purchase-orders" />
    <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
     <div><h1 className="text-xl font-black text-[#1a3a6e]">📋 นำเข้าสินค้า / รับเข้าคลัง</h1><p className="mt-1 text-xs font-semibold text-slate-500">บันทึกเอกสาร → ตรวจรายการ → รับสินค้า → เพิ่มจำนวนในคลัง</p></div>
     <div className="flex flex-wrap gap-2"><a href="/admin/reports/purchase-orders" className={secondary}>รายงาน PO</a><button className={secondary} disabled={loading} onClick={() => { setError(''); setLoading(true); void load(); }}>รีเฟรช</button><button className={button} onClick={begin}>+ บันทึกนำเข้าสินค้า</button></div>
@@ -213,9 +212,9 @@ export default function PurchaseOrdersPage() {
       <p className="border-t border-blue-50 p-3 text-xs text-slate-400">แสดง PO ล่าสุดไม่เกิน 500 ใบ</p>
      </section>
   </div>
-  {editing && <Modal title="บันทึกนำเข้าสินค้า (PO)" busy={busy} onClose={() => setEditing(false)} footer={<><span className="mr-auto text-sm font-bold text-blue-900">รวม {money(draftTotal)} ฿</span><button disabled={busy} className={secondary} onClick={() => setEditing(false)}>ยกเลิก</button><button disabled={busy} className={button} onClick={() => void saveOrder()}>{busy ? 'กำลังบันทึก...' : 'บันทึก PO'}</button></>}>
-   {errorsView}
-   <fieldset disabled={busy} className="space-y-5">
+  {editing && <Modal title="บันทึกนำเข้าสินค้า (PO)" busy={busy} onClose={() => setEditing(false)} footer={<><span className="mr-auto text-sm font-bold text-blue-900">รวม {money(draftTotal)} ฿</span><button disabled={busy} className={secondary} onClick={() => setEditing(false)}>ยกเลิก</button><button disabled={busy} className={button} onClick={() => void saveOrder()}>{busy ? 'กำลังบันทึก...' : 'บันทึก PO'}</button></>} fillBody pinned={<>
+   <fieldset disabled={busy} className="min-w-0 space-y-4">
+    {errorsView}
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
      <Field label="เลข PO *"><input maxLength={100} value={number} onChange={(event) => setNumber(event.target.value)} className={input} placeholder="PO-2026-001" /></Field>
      <Field label="แหล่งที่มา *"><input placeholder="เช่น คลังกลาง หรือชื่อผู้ส่งสินค้า" maxLength={200} value={supplier} onChange={(event) => setSupplier(event.target.value)} className={input} /></Field>
@@ -230,7 +229,10 @@ export default function PurchaseOrdersPage() {
      {importName && <p className="text-xs font-bold text-blue-800">นำเข้า: {importName} — ตรวจและแก้ไขรายการด้านล่างก่อนบันทึก</p>}
     </div>
     <div className="rounded-xl bg-blue-50 p-3 text-sm text-blue-900">จำนวน = จำนวนที่ระบุในเอกสาร · หน่วย = เช่น กล่อง / รีม / ชิ้น · จำนวนใน 1 หน่วย = ของในแต่ละกล่องหรือแพ็ก (รับเป็นชิ้นให้ใส่ 1)</div>
-    <div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left text-sm"><thead className="bg-blue-50 text-blue-800"><tr>{['สินค้าในคลัง','จำนวน','หน่วย','จำนวนใน 1 หน่วย','มูลค่า / หน่วย','รวม',''].map((label, i) => <th key={i} className="p-2">{label}</th>)}</tr></thead><tbody className="divide-y divide-blue-50">{drafts.map((line) => {
+   </fieldset>
+  </>}>
+   <fieldset disabled={busy} className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+    <div data-po-lines role="region" aria-label="รายการสินค้าใน PO" tabIndex={0} className="min-h-0 flex-1 overflow-auto rounded-xl border border-blue-100"><table className="w-full min-w-[1100px] text-left text-sm"><thead className="sticky top-0 z-10 bg-blue-50 text-blue-800"><tr>{['สินค้าในคลัง','จำนวน','หน่วย','จำนวนใน 1 หน่วย','มูลค่า / หน่วย','รวม',''].map((label, i) => <th key={i} className="p-2">{label}</th>)}</tr></thead><tbody className="divide-y divide-blue-50">{drafts.map((line) => {
      const item = items.find((row) => row.id === line.item_id);
      return <tr key={line.key} className="[&>td]:align-top [&_input]:h-11 [&_select]:h-11">
       <td className="w-[34%] min-w-80 p-2"><POProductPicker items={items} value={line.item_id} disabled={busy} onChange={(item) => patch(line.key, { item_id: item.id, purchase_unit: line.purchase_unit || item.unit, units_per_pack: line.units_per_pack || '1' })} />{line.imported_code && <p className="mt-1 text-xs text-slate-500">รหัสจากไฟล์: {line.imported_code}</p>}{!item && <p className="text-xs text-red-600">กรุณาเลือกสินค้าให้ตรงกับรายการ</p>}</td>
@@ -242,7 +244,7 @@ export default function PurchaseOrdersPage() {
       <td className="p-2"><button className="flex h-11 items-center px-2 text-red-600" aria-label="ลบรายการ" onClick={() => setDrafts((prev) => prev.filter((row) => row.key !== line.key))}>ลบ</button></td>
      </tr>;
     })}{!drafts.length && <tr><td colSpan={7} className="p-10 text-center text-slate-400">เพิ่มรายการเองหรือนำเข้า Excel</td></tr>}</tbody></table></div>
-    <p className="text-xs text-slate-500">ตัวอย่าง: นำเข้า 2 กล่อง กล่องละ 12 ชิ้น → รับครบจะเพิ่มคลัง 24 ชิ้น มูลค่าตามเอกสารนำเข้า แยกจากมูลค่าสินค้าที่ใช้ในใบเบิก</p>
+    <p className="shrink-0 text-xs text-slate-500">ตัวอย่าง: นำเข้า 2 กล่อง กล่องละ 12 ชิ้น → รับครบจะเพิ่มคลัง 24 ชิ้น มูลค่าตามเอกสารนำเข้า แยกจากมูลค่าสินค้าที่ใช้ในใบเบิก</p>
    </fieldset>
   </Modal>}
   {selected && <Modal title={'รับสินค้า / ' + selected.po_number} busy={busy} onClose={() => { setSelected(null); setFormErrors([]); }} footer={<><button disabled={busy} className={secondary} onClick={() => { setSelected(null); setFormErrors([]); }}>ปิด</button>{selected.status !== 'received' && <button disabled={busy || detailLoading || !lines.length} className={button} onClick={() => void receive()}>{busy ? 'กำลังรับสินค้า...' : 'ยืนยันรับและเพิ่มคลัง'}</button>}</>}>

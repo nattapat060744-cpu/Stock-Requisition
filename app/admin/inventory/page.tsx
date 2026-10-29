@@ -3,7 +3,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import {exportReportExcel} from '@/lib/reportExports';
-import AdminNav from '@/components/AdminNav';
 
 interface InventoryItem {
   id: string;
@@ -157,7 +156,6 @@ export default function AdminInventoryPage() {
     <div className="min-h-screen bg-[#e8edf5] py-6 sm:py-8 px-3 sm:px-6 lg:px-8 text-slate-800">
       <div className="max-w-7xl mx-auto space-y-5">
 
-        <AdminNav activeHref="/admin/inventory" />
 
         <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm shadow-blue-100/50">
           <div className="flex flex-wrap items-center justify-between gap-4">

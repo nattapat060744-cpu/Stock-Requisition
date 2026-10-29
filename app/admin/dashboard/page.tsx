@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import AdminNav from '@/components/AdminNav';
 import Link from 'next/link';
 
 const bangkokDate = (date: Date) => date.toLocaleDateString('sv-SE', { timeZone: 'Asia/Bangkok' });
@@ -139,7 +138,6 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto space-y-5">
 
         {/* ── Navbar ── */}
-        <AdminNav activeHref="/admin/dashboard" />
 
         {/* ── Header + Filters ── */}
         <div className="bg-white p-5 rounded-2xl shadow-sm shadow-blue-100/50 border border-blue-100 flex flex-col sm:flex-row sm:items-center gap-4">

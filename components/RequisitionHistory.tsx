@@ -1,11 +1,13 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import RequestedItems from '@/components/RequestedItems';
 import { exportReportExcel } from '@/lib/reportExports';
 import ReportHeading, {REPORT_PANEL} from '@/components/ReportHeading';
 import ReportPagination from '@/components/ReportPagination';
 
 type Detail = {
+  item_id?:string;
   id: string;
   quantity: number;
   price_at_time: number;
@@ -13,6 +15,7 @@ type Detail = {
 };
 
 type Entry = {
+  note?:string;admin_note?:string;requested_items?:Detail[];
   id: string;
   requester_name: string;
   branch_name: string;
@@ -44,7 +47,7 @@ const statuses: Record<string, string> = { pending: 'รออนุมัติ
 function query(filters: Filters) {
   let q = supabase
     .from('requisitions')
-    .select('*, requisition_details(id, quantity, price_at_time, items(name, unit, image_url))', { count: 'exact' });
+    .select('*, requisition_details(id, item_id, quantity, price_at_time, items(name, unit, image_url))', { count: 'exact' });
   if (filters.name.trim()) q = q.ilike('requester_name', '%' + filters.name.trim().replace(/[\\%_]/g, '\\$&') + '%');
   if (filters.branch) q = q.eq('branch_name', filters.branch);
   if (filters.zone) q = q.eq('zone_name', filters.zone);
@@ -350,7 +353,7 @@ export default function RequisitionHistory() {
             <button
               key={preset.id}
               type="button"
-              onClick={() => handleApplyPreset(preset.id as any)}
+              onClick={() => handleApplyPreset(preset.id as Parameters<typeof handleApplyPreset>[0])}
               className={`px-3.5 py-1 rounded-full text-xs font-bold transition-all ${
                 activePreset === preset.id
                   ? 'bg-[#1a3a6e] text-white shadow-xs'
@@ -714,6 +717,7 @@ export default function RequisitionHistory() {
                 )}
               </div>
 
+              <div className="space-y-3 text-sm"><p className="whitespace-pre-wrap break-words"><strong>หมายเหตุใบเบิก:</strong> {activeEntry.note||'—'}</p><p className="whitespace-pre-wrap break-words"><strong>หมายเหตุผู้ตรวจสอบ:</strong> {activeEntry.admin_note||'—'}</p><RequestedItems original={activeEntry.requested_items} current={activeEntry.requisition_details} status={activeEntry.status}/></div>
               <div className="space-y-3">
                 <p className="text-xs font-black text-blue-900 uppercase tracking-wider">
                   รายการสินค้าที่เบิก ({activeEntry.requisition_details.length} รายการ)

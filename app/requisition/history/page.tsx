@@ -1,3 +1,1 @@
-export default function HistoryPage() {
-  return <div>เนื้อหาหน้าประวัติ</div>;
-}
+export {default} from '../my-requests/page';
