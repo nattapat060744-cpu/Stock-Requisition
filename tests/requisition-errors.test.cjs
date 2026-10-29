@@ -1,0 +1,10 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript');
+const exportsForTest={};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname,'../lib/requisitionRules.ts'),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports:exportsForTest});
+const {requestError}=exportsForTest;
+test('missing RPC preserves exact function and error code without prescribing SQL',()=>{const text=requestError({code:'PGRST202',message:'Could not find the function public.save_department_requisition in the schema cache'});assert.match(text,/PGRST202/);assert.match(text,/public.save_department_requisition/);assert.doesNotMatch(text,/REQUISITION_SETUP|กรุณารัน SQL/);});
+test('missing column remains identifiable',()=>{assert.match(requestError({code:'42703',message:'column submission_payload does not exist'}),/\[42703\] column submission_payload does not exist/);});
+test('business errors remain unchanged',()=>{assert.equal(requestError({code:'P0001',message:'กรุณาเลือกโซนของแผนก'}),'กรุณาเลือกโซนของแผนก');});
+test('unknown errors use a useful fallback',()=>{assert.equal(requestError(null),'บันทึกไม่สำเร็จ กรุณาลองใหม่');});

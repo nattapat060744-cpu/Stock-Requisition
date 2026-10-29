@@ -189,5 +189,18 @@ test('department requests: database transactions and access',async t=>{
   await rpc('department_logout',[stockSession.token]);await reject(list(stockSession.token),/หมดอายุ/);
   await rpc('set_system_admin_code',['New-Master-After-View']);await reject(list(master.token),/หมดอายุ/);
  });
+ await t.test('repair restores master login after legacy auth overwrites functions without resetting codes',async()=>{
+  const oldLogin=migration.match(/CREATE OR REPLACE FUNCTION public\.department_login\(p_code text\)[\s\S]*?END \$\$;/)[0];
+  await db.exec(oldLogin);
+  await reject(rpc('department_login',['New-Master-After-View',true]),/รหัสแผนกไม่ถูกต้อง/);
+  const repair=fs.readFileSync(path.join(__dirname,'../supabase/REPAIR_DEPARTMENT_AUTH.sql'),'utf8');
+  await db.exec(repair);await db.exec(repair);
+  await db.exec('SET ROLE anon');
+  try {
+   const master=await rpc('department_login',['New-Master-After-View',true]);assert.equal(master.role,'admin');assert.equal(master.expires_at,'infinity');
+   const ordinary=await rpc('department_login',['Viewable-Department-A']);assert.equal(ordinary.branch_id,a);
+   const codes=(await db.query('SELECT * FROM get_department_codes($1)',[master.token])).rows;assert.equal(codes.find(row=>row.branch_id===a).department_code,'Viewable-Department-A');
+  }finally{await db.exec('RESET ROLE');}
+ });
  }finally{await db.close();}
 });
