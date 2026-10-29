@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import DepartmentCodeEditor from '@/components/DepartmentCodeEditor';
 import DepartmentCodeList from '@/components/DepartmentCodeList';
+import { requestError } from '@/lib/requisitionRules';
 
 interface Branch {
   id: string;
@@ -39,6 +40,25 @@ export default function AdminZonesPage() {
   const [codeBranch,setCodeBranch]=useState<Branch|null>(null);
   const [codeMessage,setCodeMessage]=useState('');
   const [showCodes,setShowCodes]=useState(false);
+  const [branchCode, setBranchCode] = useState('');
+  const [branchCodeConfirm, setBranchCodeConfirm] = useState('');
+  const [branchAdminKey, setBranchAdminKey] = useState('');
+  const [showBranchCode, setShowBranchCode] = useState(false);
+  const [showAddBranch, setShowAddBranch] = useState(false);
+  const addBranchDialog = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const element = addBranchDialog.current;
+    if (!element) return;
+    if (showAddBranch && !element.open) element.showModal();
+    if (!showAddBranch && element.open) element.close();
+  }, [showAddBranch]);
+
+  function closeAddBranch() {
+    if (branchBusy.current) return;
+    setShowAddBranch(false);
+    setBranchName(''); setBranchCode(''); setBranchCodeConfirm(''); setBranchAdminKey(''); setShowBranchCode(false);
+  }
 
   // form state
   const [newName, setNewName]       = useState('');
@@ -82,14 +102,43 @@ export default function AdminZonesPage() {
 
   async function addBranch() {
     const name = branchName.trim();
+    const code = branchCode.trim();
+    const adminKey = branchAdminKey.trim();
     if (branchBusy.current) return;
     if (!name) { alert('กรุณากรอกชื่อแผนก'); return; }
     if (branches.some((branch) => branch.name.trim().toLowerCase() === name.toLowerCase())) { alert('มีแผนกชื่อนี้แล้ว'); return; }
+    if (code.length < 12 || code.length > 100) { alert('รหัสแผนกต้องยาว 12 ถึง 100 ตัวอักษร'); return; }
+    if (code !== branchCodeConfirm.trim()) { alert('รหัสแผนกและยืนยันรหัสไม่ตรงกัน'); return; }
+    if (adminKey.length < 12) { alert('กรุณากรอกรหัสสต็อกหรือแอดมินกลางให้ครบ'); return; }
     branchBusy.current = true; setSavingBranch(true);
     try {
-      const { error } = await supabase.from('branches').insert({ name });
-      if (error) { alert('เพิ่มแผนกไม่สำเร็จ: ' + error.message); return; }
-      setBranchName(''); await loadData();
+      const created = await supabase.from('branches').insert({ name }).select('id').single();
+      if (created.error || !created.data) { alert('เพิ่มแผนกไม่สำเร็จ: ' + (created.error?.message ?? 'ไม่ทราบสาเหตุ')); return; }
+      const branchId = created.data.id as string;
+
+      const coded = await supabase.rpc('admin_set_department_code', { p_admin_key: adminKey, p_branch_id: branchId, p_code: code });
+      if (coded.error) {
+        // ตั้งรหัสไม่สำเร็จ → ลบแผนกที่เพิ่งสร้าง เพื่อไม่ให้มีแผนกที่ไม่มีรหัสค้างอยู่
+        const rollback = await supabase.from('branches').delete().eq('id', branchId);
+        const message = requestError(coded.error);
+        const reason = /duplicate key|unique constraint/i.test(message) ? 'รหัสนี้ถูกใช้กับแผนกอื่นแล้ว กรุณาใช้รหัสใหม่' : message;
+        if (rollback.error) {
+          alert('สร้างแผนกแล้วแต่ตั้งรหัสไม่สำเร็จ: ' + reason + '\nกรุณาตั้งรหัสอีกครั้งในหน้าต่างที่เปิดขึ้น');
+          setBranchName(''); setBranchCode(''); setBranchCodeConfirm(''); setBranchAdminKey(''); setShowBranchCode(false);
+          setShowAddBranch(false);
+          await loadData();
+          setCodeMessage('');
+          setCodeBranch({ id: branchId, name });
+        } else {
+          alert('ตั้งรหัสไม่สำเร็จ จึงยังไม่ได้สร้างแผนก: ' + reason);
+        }
+        return;
+      }
+
+      setBranchName(''); setBranchCode(''); setBranchCodeConfirm(''); setBranchAdminKey(''); setShowBranchCode(false);
+      setShowAddBranch(false);
+      setCodeMessage('สร้างแผนก ' + name + ' และตั้งรหัสเข้าใช้งานเรียบร้อยแล้ว');
+      await loadData();
     } finally { branchBusy.current = false; setSavingBranch(false); }
   }
 
@@ -204,17 +253,51 @@ export default function AdminZonesPage() {
         {codeMessage&&<p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{codeMessage}</p>}
         {loadError && <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><span>{loadError}</span><button onClick={() => void loadData()} className="font-bold">ลองใหม่</button></div>}
         <section className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div><div><h2 className="font-black text-[#1a3a6e]">🏬 จัดการแผนก</h2><p className="mt-1 text-xs text-slate-500">ทั้งหมด {branches.length} แผนก · เพิ่มแผนกและดูโซนที่เกี่ยวข้อง</p></div><button type="button" onClick={()=>setShowCodes(true)} className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-900 hover:bg-blue-100">ดูรหัสทุกแผนก</button></div>
-            <form className="flex gap-2 sm:w-96" onSubmit={(event) => { event.preventDefault(); void addBranch(); }}>
-              <input aria-label="ชื่อแผนกใหม่" disabled={savingBranch || loading} value={branchName} onChange={(event) => setBranchName(event.target.value)} placeholder="ชื่อแผนกใหม่..." className="min-w-0 flex-1 rounded-xl border border-blue-100 bg-blue-50/30 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-300" />
-              <button disabled={savingBranch || loading} className="shrink-0 rounded-xl bg-[#1a3a6e] px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">{savingBranch ? 'กำลังบันทึก...' : '+ เพิ่มแผนก'}</button>
-            </form>
+          <div>
+            <h2 className="font-black text-[#1a3a6e]">🏬 จัดการแผนก</h2>
+            <p className="mt-1 text-xs text-slate-500">ทั้งหมด {branches.length} แผนก · เพิ่มแผนกและดูโซนที่เกี่ยวข้อง</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" disabled={loading} onClick={() => setShowAddBranch(true)} className="rounded-xl bg-[#1a3a6e] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">+ เพิ่มแผนกใหม่</button>
+              <button type="button" onClick={()=>setShowCodes(true)} className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-900 hover:bg-blue-100">ดูรหัสทุกแผนก</button>
+            </div>
           </div>
+          <dialog ref={addBranchDialog} onCancel={(event) => { event.preventDefault(); closeAddBranch(); }} onClose={() => setShowAddBranch(false)} aria-labelledby="add-branch-title" className="m-auto max-h-[90dvh] w-[min(95vw,640px)] rounded-2xl border border-blue-100 p-0 text-slate-800 shadow-xl backdrop:bg-slate-900/40">
+          <form className="flex max-h-[90dvh] flex-col" onSubmit={(event) => { event.preventDefault(); void addBranch(); }}>
+            <header className="flex shrink-0 items-center justify-between gap-3 bg-[#1a3a6e] p-5 text-white">
+              <div><h3 id="add-branch-title" className="font-black">➕ เพิ่มแผนกใหม่ พร้อมตั้งรหัสเข้าใช้งาน</h3><p className="mt-1 text-xs text-blue-100">ถ้าตั้งรหัสไม่สำเร็จ ระบบจะไม่สร้างแผนกนี้ให้</p></div>
+              <button type="button" disabled={savingBranch} aria-label="ปิดหน้าเพิ่มแผนก" onClick={closeAddBranch} className="rounded-full bg-white/20 px-3 py-1 text-lg disabled:opacity-40">×</button>
+            </header>
+            <div className="space-y-3 overflow-y-auto p-5">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-xs font-bold text-blue-900">ชื่อแผนกใหม่
+                <input required disabled={savingBranch || loading} value={branchName} onChange={(event) => setBranchName(event.target.value)} placeholder="ชื่อแผนกใหม่..." className="mt-1 h-11 w-full rounded-xl border border-blue-200 bg-white px-3 text-sm font-normal text-slate-800 outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-slate-50" />
+              </label>
+              <label className="block text-xs font-bold text-blue-900">รหัสสต็อก / รหัสแอดมินกลาง (ใช้ยืนยันการตั้งรหัส)
+                <input required autoComplete="off" type="password" minLength={12} maxLength={100} disabled={savingBranch || loading} value={branchAdminKey} onChange={(event) => setBranchAdminKey(event.target.value)} className="mt-1 h-11 w-full rounded-xl border border-blue-200 bg-white px-3 text-sm font-normal text-slate-800 outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-slate-50" />
+              </label>
+              <label className="block text-xs font-bold text-blue-900">รหัสเข้าใช้งานของแผนก (12–100 ตัวอักษร)
+                <input required autoComplete="new-password" type={showBranchCode ? 'text' : 'password'} minLength={12} maxLength={100} disabled={savingBranch || loading} value={branchCode} onChange={(event) => setBranchCode(event.target.value)} className="mt-1 h-11 w-full rounded-xl border border-blue-200 bg-white px-3 text-sm font-normal text-slate-800 outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-slate-50" />
+              </label>
+              <label className="block text-xs font-bold text-blue-900">ยืนยันรหัสของแผนก
+                <input required autoComplete="new-password" type={showBranchCode ? 'text' : 'password'} minLength={12} maxLength={100} disabled={savingBranch || loading} value={branchCodeConfirm} onChange={(event) => setBranchCodeConfirm(event.target.value)} className="mt-1 h-11 w-full rounded-xl border border-blue-200 bg-white px-3 text-sm font-normal text-slate-800 outline-none focus:ring-2 focus:ring-blue-300 disabled:bg-slate-50" />
+              </label>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" checked={showBranchCode} onChange={(event) => setShowBranchCode(event.target.checked)} />
+              แสดงรหัสแผนก
+            </label>
+            <p className="text-xs text-slate-500">ถ้าตั้งรหัสไม่สำเร็จ (เช่น รหัสซ้ำกับแผนกอื่น) ระบบจะไม่สร้างแผนกนี้ให้</p>
+            </div>
+            <footer className="flex shrink-0 justify-end gap-3 border-t border-blue-100 bg-white p-4">
+              <button type="button" disabled={savingBranch} onClick={closeAddBranch} className="rounded-xl border border-blue-200 px-4 py-2.5 text-sm font-bold text-blue-900 disabled:opacity-40">ยกเลิก</button>
+              <button disabled={savingBranch || loading} className="rounded-xl bg-[#1a3a6e] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">{savingBranch ? 'กำลังบันทึก...' : '+ เพิ่มแผนกและตั้งรหัส'}</button>
+            </footer>
+          </form>
+          </dialog>
           <div className="mt-5 grid max-h-80 gap-3 overflow-y-auto sm:grid-cols-2 lg:grid-cols-3">
             {branches.map((branch) => <div key={branch.id} className="flex flex-col items-start justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/30 p-3">
               <div className="min-w-0"><p className="break-words text-sm font-bold text-slate-800">{branch.name}</p><p className="mt-1 text-xs text-slate-500">{zones.filter((zone) => zone.branch_id === branch.id).length} โซน</p></div>
-              <div className="flex shrink-0 flex-wrap justify-end gap-2"><button onClick={()=>{setCodeMessage('');setCodeBranch(branch);}} className="rounded-lg border border-blue-200 bg-white px-2 py-1.5 text-xs font-bold text-blue-800">ตั้ง / เปลี่ยนรหัส</button><button onClick={() => { handleFilterChange(branch.id); document.getElementById('zone-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className="rounded-lg border border-blue-200 bg-white px-2 py-1.5 text-xs font-bold text-blue-800">ดูโซน</button><button disabled={savingBranch || saving} onClick={() => void removeBranch(branch)} className="rounded-lg border border-red-100 bg-red-50 px-2 py-1.5 text-xs font-bold text-red-600 disabled:opacity-50">ลบ</button></div>
+              <div className="flex shrink-0 flex-wrap justify-end gap-2"><button onClick={() => { handleFilterChange(branch.id); document.getElementById('zone-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className="rounded-lg border border-blue-200 bg-white px-2 py-1.5 text-xs font-bold text-blue-800">ดูโซน</button><button disabled={savingBranch || saving} onClick={() => void removeBranch(branch)} className="rounded-lg border border-red-100 bg-red-50 px-2 py-1.5 text-xs font-bold text-red-600 disabled:opacity-50">ลบ</button></div>
             </div>)}
             {!loading && branches.length === 0 && <p className="py-5 text-sm text-slate-400">ยังไม่มีแผนก เพิ่มแผนกก่อนสร้างโซน</p>}
           </div>
