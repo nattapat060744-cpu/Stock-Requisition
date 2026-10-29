@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
@@ -9,6 +9,8 @@ import RequestedItems from '@/components/RequestedItems';
 import { REQUEST_STATUSES, type RequestStatus } from '@/lib/employeeRequests';
 import { requestError } from '@/lib/requisitionRules';
 import ReportPagination from '@/components/ReportPagination';
+import { ui, PageHero, StatCard, Field, EmptyState, Skeleton, Notice, Modal } from '@/components/AdminUI';
+
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -52,28 +54,20 @@ const REFRESH_INTERVAL_MS = 30_000;
 const EMPTY_FILTERS: Filters = { name: '', zone: '', from: '', to: '' };
 const EMPTY_COUNTS: StatusCounts = { all: 0, pending: 0, approved: 0, rejected: 0 };
 const STATUS_TABS: StatusTab[] = ['all', 'pending', 'approved', 'rejected'];
-
 const TABLE_HEADERS = ['เวลา', 'ผู้เบิก / ผู้ส่ง', 'โซน', 'รายการ', 'สถานะ', 'ดำเนินการ'];
 
-// Colour cues so each status can be told apart at a glance
-const TAB_STYLE: Record<StatusTab, { dot: string; number: string; active: string }> = {
-  all: { dot: 'bg-blue-500', number: 'text-blue-900', active: 'border-blue-600 ring-2 ring-blue-200' },
-  pending: { dot: 'bg-amber-500', number: 'text-amber-700', active: 'border-amber-500 ring-2 ring-amber-200' },
-  approved: { dot: 'bg-emerald-500', number: 'text-emerald-700', active: 'border-emerald-500 ring-2 ring-emerald-200' },
-  rejected: { dot: 'bg-red-500', number: 'text-red-700', active: 'border-red-500 ring-2 ring-red-200' },
+// ธีมเดียวกับหน้าแอดมิน: การ์ดสรุปสถานะ + ป้ายสถานะ
+const TAB_CARD: Record<StatusTab, { icon: string; accent: 'blue' | 'amber' | 'emerald' | 'red'; hint: string }> = {
+  all: { icon: '📋', accent: 'blue', hint: 'ใบเบิกทั้งหมด' },
+  pending: { icon: '⏳', accent: 'amber', hint: 'รอตรวจสอบ' },
+  approved: { icon: '✅', accent: 'emerald', hint: 'ปิดรายการแล้ว' },
+  rejected: { icon: '🚫', accent: 'red', hint: 'ไม่อนุมัติ' },
 };
-const ROW_ACCENT: Record<string, string> = {
-  pending: 'border-l-amber-400',
-  approved: 'border-l-emerald-400',
-  rejected: 'border-l-red-400',
+const BADGE_STYLE: Record<string, { badge: string; dot: string }> = {
+  pending: { badge: 'border-amber-200 bg-amber-50 text-amber-800', dot: 'bg-amber-500 animate-pulse' },
+  approved: { badge: 'border-emerald-200 bg-emerald-50 text-emerald-800', dot: 'bg-emerald-500' },
+  rejected: { badge: 'border-red-200 bg-red-50 text-red-700', dot: 'bg-red-500' },
 };
-
-// Shared class names
-const inputClass = 'mt-2 h-12 w-full rounded-xl border border-blue-200 bg-white px-3 text-base text-slate-800';
-const labelClass = 'text-base font-bold text-blue-900';
-const secondaryButton =
-  'rounded-xl border border-blue-300 bg-white px-4 py-3 text-base font-bold text-blue-900 hover:bg-blue-50 disabled:opacity-40';
-const primaryButton = 'rounded-xl bg-[#1a3a6e] px-6 py-3 text-base font-bold text-white hover:bg-[#15305a]';
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString('th-TH', {
@@ -135,9 +129,19 @@ function lastPageFor(total: number) {
 
 function StatusBadge({ value }: { value: RequestStatus }) {
   const status = REQUEST_STATUSES[value];
+  const style = BADGE_STYLE[value] || BADGE_STYLE.pending;
   return (
-    <span className={'inline-flex rounded-full border px-3 py-1 text-sm font-bold ' + (status?.color || '')}>
+    <span className={'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ' + style.badge}>
+      <span aria-hidden="true" className={'h-1.5 w-1.5 rounded-full ' + style.dot} />
       {status?.label || value}
+    </span>
+  );
+}
+
+function Avatar({ name }: { name: string }) {
+  return (
+    <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-black text-blue-800">
+      {(name || '?').trim().slice(0, 1)}
     </span>
   );
 }
@@ -147,20 +151,13 @@ function ItemLine({ line }: { line: Line }) {
   return (
     <div className="flex items-center gap-3 py-3">
       {item?.image_url ? (
-        <Image
-          unoptimized
-          width={48}
-          height={48}
-          src={item.image_url}
-          alt={item.name}
-          className="h-12 w-12 rounded-lg border object-contain"
-        />
+        <Image unoptimized width={48} height={48} src={item.image_url} alt={item.name} className="h-12 w-12 rounded-lg border border-blue-100 object-contain" />
       ) : (
-        <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50">📦</span>
+        <span aria-hidden="true" className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50">📦</span>
       )}
-      <span className="min-w-0 flex-1 text-base font-semibold">{item?.name || 'สินค้าเดิม'}</span>
-      <strong className="text-lg">
-        {line.quantity} {item?.unit}
+      <span className="min-w-0 flex-1 text-sm font-bold text-slate-700">{item?.name || 'สินค้าเดิม'}</span>
+      <strong className="shrink-0 font-black tabular-nums text-[#1a3a6e]">
+        {line.quantity} <span className="text-xs font-semibold text-slate-500">{item?.unit}</span>
       </strong>
     </div>
   );
@@ -171,131 +168,96 @@ function ItemLine({ line }: { line: Line }) {
 /* -------------------------------------------------------------------------- */
 
 function RequestDetailDialog({ entry, onClose }: { entry: Entry; onClose: () => void }) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    dialog?.showModal();
-    return () => dialog?.close();
-  }, []);
-
   return (
-    <dialog
-      ref={dialogRef}
-      onCancel={(e) => {
-        e.preventDefault();
-        onClose();
-      }}
-      className="m-auto max-h-[90dvh] w-[min(95vw,850px)] rounded-2xl p-0 text-slate-800 backdrop:bg-slate-900/40"
-    >
-      <div className="flex max-h-[90dvh] flex-col">
-        <header className="flex items-center justify-between gap-3 bg-[#1a3a6e] p-5 text-white">
-          <div>
-            <h2 className="font-black">รายละเอียดใบเบิก</h2>
-            <p className="mt-1 text-sm">
-              {entry.branch_name} · {formatDateTime(entry.created_at)}
-            </p>
-          </div>
-          <button aria-label="ปิดรายละเอียด" onClick={onClose} className="rounded-full bg-white/20 px-3 py-1">
-            ×
-          </button>
-        </header>
-
-        <div className="space-y-4 overflow-y-auto p-5">
-          <div className="grid gap-3 rounded-xl bg-blue-50 p-4 text-base sm:grid-cols-2">
-            <p>
-              ผู้เบิก: <strong>{entry.requester_name}</strong>
-            </p>
-            <p className="flex items-center gap-2">
-              สถานะ: <StatusBadge value={entry.status} />
-            </p>
-            {entry.zone_name && <p>โซน: {entry.zone_name}</p>}
-            {entry.sender_name && <p>หัวหน้า / รองหัวหน้าผู้ส่ง: {entry.sender_name}</p>}
-          </div>
-
-          <p className="whitespace-pre-wrap wrap-break-word text-base">
-            <strong>หมายเหตุใบเบิก:</strong> {entry.note || '—'}
-          </p>
-          <p className="whitespace-pre-wrap wrap-break-word text-base">
-            <strong>หมายเหตุผู้ตรวจสอบ:</strong> {entry.admin_note || '—'}
-          </p>
-
-          <h3 className="font-bold text-blue-900">
-            {entry.status === 'approved' ? 'รายการที่อนุมัติ' : 'รายการสินค้า'}
-          </h3>
-          <div className="divide-y divide-blue-100">
-            {entry.requisition_details.map((line) => (
-              <ItemLine key={line.id} line={line} />
-            ))}
-          </div>
-
-          <RequestedItems
-            original={entry.requested_items}
-            current={entry.requisition_details}
-            status={entry.status}
-          />
-
-          <p className="text-xs text-slate-500">
-            เลขอ้างอิง: {entry.id}
-            <br />
-            แก้ไขล่าสุด: {formatDateTime(entry.updated_at || entry.created_at)}
-          </p>
-
-          {entry.status === 'approved' && (
-            <p className="text-sm text-blue-800">อนุมัติใบเบิกแล้ว กรุณาติดต่อคลังเรื่องการรับสินค้า</p>
-          )}
-        </div>
-
-        <footer className="flex justify-end gap-3 border-t border-blue-100 bg-white p-4">
-          <button onClick={onClose} className={secondaryButton}>
-            ปิด
+    <Modal
+      title="📄 รายละเอียดใบเบิก"
+      busy={false}
+      onClose={onClose}
+      footer={
+        <>
+          <button className={ui.secondary} onClick={onClose}>
+            ปิดหน้าต่าง
           </button>
           {entry.status === 'pending' && (
-            <Link
-              href={'/requisition?edit=' + encodeURIComponent(entry.id)}
-              className="rounded-xl bg-[#1a3a6e] px-4 py-2.5 text-sm font-bold text-white"
-            >
+            <Link href={'/requisition?edit=' + encodeURIComponent(entry.id)} className={ui.button}>
               แก้ไขใบเบิก
             </Link>
           )}
-        </footer>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div className="grid gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-4 text-sm sm:grid-cols-2">
+          <p className="font-bold text-[#1a3a6e]">
+            {entry.branch_name} <span className="font-semibold text-slate-500">· {formatDateTime(entry.created_at)}</span>
+          </p>
+          <p className="flex items-center gap-2">
+            สถานะ: <StatusBadge value={entry.status} />
+          </p>
+          <p className="flex items-center gap-2">
+            ผู้เบิก: <Avatar name={entry.requester_name} /> <strong>{entry.requester_name}</strong>
+          </p>
+          {entry.zone_name && <p>โซน: <strong className="text-blue-700">{entry.zone_name}</strong></p>}
+          {entry.sender_name && <p className="sm:col-span-2">หัวหน้า / รองหัวหน้าผู้ส่ง: <strong>{entry.sender_name}</strong></p>}
+        </div>
+
+        <div className="space-y-2 text-sm">
+          <p className="whitespace-pre-wrap wrap-break-word font-semibold text-slate-600">
+            <span className="text-slate-400">หมายเหตุใบเบิก: </span>{entry.note || '—'}
+          </p>
+          <p className="whitespace-pre-wrap wrap-break-word font-semibold text-blue-800">
+            <span className="text-blue-400">หมายเหตุผู้ตรวจสอบ: </span>{entry.admin_note || '—'}
+          </p>
+        </div>
+
+        <h3 className="text-sm font-black text-[#1a3a6e]">
+          {entry.status === 'approved' ? 'รายการที่อนุมัติ' : 'รายการสินค้า'}
+        </h3>
+        <div className="divide-y divide-blue-50 rounded-xl border border-blue-100 px-4">
+          {entry.requisition_details.map((line) => (
+            <ItemLine key={line.id} line={line} />
+          ))}
+        </div>
+
+        <RequestedItems original={entry.requested_items} current={entry.requisition_details} status={entry.status} />
+
+        {entry.status === 'approved' && (
+          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+            อนุมัติใบเบิกแล้ว กรุณาติดต่อคลังเรื่องการรับสินค้า
+          </p>
+        )}
+
+        <p className="text-xs text-slate-400">
+          เลขอ้างอิง: {entry.id}
+          <br />
+          แก้ไขล่าสุด: {formatDateTime(entry.updated_at || entry.created_at)}
+        </p>
       </div>
-    </dialog>
+    </Modal>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Status tabs (summary counts)                                              */
+/*  Status cards (summary counts)                                             */
 /* -------------------------------------------------------------------------- */
 
-function StatusTabs({
-  counts,
-  active,
-  onSelect,
-}: {
-  counts: StatusCounts;
-  active: StatusTab;
-  onSelect: (tab: StatusTab) => void;
-}) {
+function StatusTabs({ counts, active, onSelect }: { counts: StatusCounts; active: StatusTab; onSelect: (tab: StatusTab) => void }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div role="group" aria-label="กรองใบเบิกตามสถานะ" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {STATUS_TABS.map((tab) => {
-        const style = TAB_STYLE[tab];
+        const card = TAB_CARD[tab];
         return (
-          <button
+          <StatCard
             key={tab}
+            label={tab === 'all' ? 'ทั้งหมด' : REQUEST_STATUSES[tab].label}
+            icon={card.icon}
+            accent={card.accent}
+            hint={card.hint}
+            value={counts[tab]}
+            unit="ใบ"
+            active={active === tab}
             onClick={() => onSelect(tab)}
-            aria-pressed={active === tab}
-            className={
-              'rounded-2xl border-2 bg-white p-4 text-left ' + (active === tab ? style.active : 'border-blue-100')
-            }
-          >
-            <span className="flex items-center gap-2 text-base font-bold text-slate-700">
-              <span className={'h-3 w-3 rounded-full ' + style.dot} aria-hidden="true" />
-              {tab === 'all' ? 'ทั้งหมด' : REQUEST_STATUSES[tab].label}
-            </span>
-            <strong className={'mt-2 block text-4xl ' + style.number}>{counts[tab]}</strong>
-          </button>
+          />
         );
       })}
     </div>
@@ -307,13 +269,7 @@ function StatusTabs({
 /* -------------------------------------------------------------------------- */
 
 function FilterForm({
-  draft,
-  setDraft,
-  zones,
-  updatedAt,
-  onSubmit,
-  onClear,
-  onRefresh,
+  draft, setDraft, zones, updatedAt, onSubmit, onClear, onRefresh,
 }: {
   draft: Filters;
   setDraft: Dispatch<SetStateAction<Filters>>;
@@ -331,60 +287,33 @@ function FilterForm({
         e.preventDefault();
         onSubmit();
       }}
-      className="space-y-4 rounded-2xl border border-blue-100 bg-white p-5"
+      className={ui.card + ' space-y-4 p-4 sm:p-5'}
     >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <label className={labelClass}>
-          ชื่อผู้เบิก
-          <input
-            value={draft.name}
-            maxLength={200}
-            onChange={(e) => update({ name: e.target.value })}
-            placeholder="ค้นหาชื่อผู้เบิก"
-            className={inputClass}
-          />
-        </label>
-
-        <label className={labelClass}>
-          โซน
-          <select value={draft.zone} onChange={(e) => update({ zone: e.target.value })} className={inputClass}>
+        <Field label="ชื่อผู้เบิก">
+          <input value={draft.name} maxLength={200} onChange={(e) => update({ name: e.target.value })} placeholder="ค้นหาชื่อผู้เบิก" className={ui.input} />
+        </Field>
+        <Field label="โซน">
+          <select value={draft.zone} onChange={(e) => update({ zone: e.target.value })} className={ui.input + ' cursor-pointer'}>
             <option value="">ทุกโซน</option>
             {zones.map((zone) => (
               <option key={zone.id}>{zone.name}</option>
             ))}
           </select>
-        </label>
-
-        <label className={labelClass}>
-          ตั้งแต่วันที่
-          <input
-            type="date"
-            value={draft.from}
-            onChange={(e) => update({ from: e.target.value })}
-            className={inputClass}
-          />
-        </label>
-
-        <label className={labelClass}>
-          ถึงวันที่
-          <input
-            type="date"
-            value={draft.to}
-            onChange={(e) => update({ to: e.target.value })}
-            className={inputClass}
-          />
-        </label>
+        </Field>
+        <Field label="ตั้งแต่วันที่">
+          <input type="date" value={draft.from} onChange={(e) => update({ from: e.target.value })} className={ui.input + ' cursor-pointer'} />
+        </Field>
+        <Field label="ถึงวันที่">
+          <input type="date" value={draft.to} onChange={(e) => update({ to: e.target.value })} className={ui.input + ' cursor-pointer'} />
+        </Field>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <button className={primaryButton}>ค้นหา</button>
-        <button type="button" onClick={onClear} className={secondaryButton}>
-          ล้างตัวกรอง
-        </button>
-        <button type="button" onClick={onRefresh} className={secondaryButton}>
-          รีเฟรช
-        </button>
-        <span className="self-center text-xs text-slate-500">อัปเดต {updatedAt || '—'}</span>
+      <div className="flex flex-wrap items-center gap-3">
+        <button className={ui.button}>ค้นหา</button>
+        <button type="button" onClick={onClear} className={ui.secondary}>ล้างตัวกรอง</button>
+        <button type="button" onClick={onRefresh} className={ui.secondary}>🔄 รีเฟรช</button>
+        <span className="text-xs font-semibold text-slate-400">อัปเดต {updatedAt || '—'}</span>
       </div>
     </form>
   );
@@ -398,95 +327,91 @@ function RequestTable({ rows, onView }: { rows: Entry[]; onView: (entry: Entry) 
   const days = groupByDay(rows);
 
   return (
-    <>
-      {/* Desktop: table with a divider row for each day */}
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full text-left text-base">
-          <thead className="bg-blue-50 text-blue-900">
-            <tr>
-              {TABLE_HEADERS.map((header) => (
-                <th key={header} className="px-4 py-3 font-bold">
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {days.map((day) => (
-              <Fragment key={day.key}>
-                <tr className="border-y border-blue-200 bg-slate-100">
-                  <th colSpan={TABLE_HEADERS.length} scope="colgroup" className="px-4 py-2.5 text-left text-base font-bold text-blue-900">
-                    {day.label}
-                  </th>
+    <div className="space-y-5">
+      {days.map((day) => (
+        <section key={day.key} className={ui.card}>
+          <div className="flex items-center gap-2 border-b border-blue-100 bg-blue-50/70 px-5 py-3">
+            <span aria-hidden="true">🗓️</span>
+            <h2 className="text-sm font-black text-[#1a3a6e]">{day.label}</h2>
+            <span className="ml-auto text-xs font-bold text-slate-500">{day.rows.length} รายการ</span>
+          </div>
+
+          {/* Desktop: ตาราง */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full text-left text-sm">
+              <thead className={ui.thead}>
+                <tr>
+                  {TABLE_HEADERS.map((header) => (
+                    <th key={header} scope="col" className="px-4 py-3.5">
+                      {header === 'ดำเนินการ' ? <span className="sr-only">{header}</span> : header}
+                    </th>
+                  ))}
                 </tr>
+              </thead>
+              <tbody className="divide-y divide-blue-50">
                 {day.rows.map((entry) => (
-                  <tr key={entry.id} className="border-b border-blue-100 hover:bg-blue-50/50">
-                    <td className={'border-l-4 px-4 py-5 font-bold ' + (ROW_ACCENT[entry.status] || 'border-l-slate-200')}>
-                      {formatTime(entry.created_at)} น.
+                  <tr key={entry.id} className="align-middle transition-colors hover:bg-blue-50/40">
+                    <td className="whitespace-nowrap px-4 py-4 text-xs font-semibold tabular-nums text-slate-500">{formatTime(entry.created_at)} น.</td>
+                    <td className="px-4 py-4">
+                      <span className="flex items-center gap-2">
+                        <Avatar name={entry.requester_name} />
+                        <span className="font-bold text-[#1a3a6e]">{entry.requester_name}</span>
+                      </span>
+                      {entry.sender_name && <p className="mt-1 text-[11px] font-semibold text-blue-800">ผู้ส่ง: {entry.sender_name}</p>}
                     </td>
-                    <td className="px-4 py-5">
-                      <strong>{entry.requester_name}</strong>
-                      {entry.sender_name && <p className="mt-1 text-sm text-blue-800">ผู้ส่ง: {entry.sender_name}</p>}
+                    <td className="px-4 py-4">
+                      {entry.zone_name ? <span className="text-xs font-bold text-blue-700">{entry.zone_name}</span> : <span className="text-slate-300">—</span>}
                     </td>
-                    <td className="px-4 py-5">{entry.zone_name || '—'}</td>
-                    <td className="max-w-xs px-4 py-5">
-                      <p className="font-semibold">{entry.requisition_details.length} รายการ</p>
-                      <p className="truncate text-sm text-slate-500">{summarizeItems(entry.requisition_details)}</p>
+                    <td className="max-w-xs px-4 py-4">
+                      <p className="font-bold text-slate-700">{entry.requisition_details.length} รายการ</p>
+                      <p className="truncate text-xs font-semibold text-slate-500">{summarizeItems(entry.requisition_details)}</p>
                     </td>
-                    <td className="px-4 py-5">
-                      <StatusBadge value={entry.status} />
-                    </td>
-                    <td className="px-4 py-5">
-                      <button onClick={() => onView(entry)} className={secondaryButton}>
-                        ดูรายละเอียด
+                    <td className="px-4 py-4"><StatusBadge value={entry.status} /></td>
+                    <td className="whitespace-nowrap px-4 py-4 text-right">
+                      <button onClick={() => onView(entry)} className={entry.status === 'pending' ? ui.rowBtnPrimary : ui.rowBtn}>
+                        {entry.status === 'pending' ? 'ดูรายละเอียด →' : 'ดูรายละเอียด'}
                       </button>
                     </td>
                   </tr>
                 ))}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
+              </tbody>
+            </table>
+          </div>
 
-      {/* Mobile: a heading for each day, then one card per request */}
-      <div className="md:hidden">
-        {days.map((day) => (
-          <section key={day.key}>
-            <h3 className="border-y border-blue-200 bg-slate-100 px-4 py-2.5 text-base font-bold text-blue-900">
-              {day.label}
-            </h3>
-            <ul className="divide-y divide-blue-100">
-              {day.rows.map((entry) => (
-                <li
-                  key={entry.id}
-                  className={'space-y-3 border-l-4 p-4 ' + (ROW_ACCENT[entry.status] || 'border-l-slate-200')}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="font-bold">{formatTime(entry.created_at)} น.</p>
-                    <StatusBadge value={entry.status} />
+          {/* Mobile: การ์ดต่อใบเบิก */}
+          <ul className="divide-y divide-blue-50 md:hidden">
+            {day.rows.map((entry) => (
+              <li key={entry.id} className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-xs font-semibold tabular-nums text-slate-500">{formatTime(entry.created_at)} น.</p>
+                  <StatusBadge value={entry.status} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Avatar name={entry.requester_name} />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-[#1a3a6e]">{entry.requester_name}</p>
+                    <p className="truncate text-xs font-semibold text-blue-700">
+                      {entry.zone_name && <>โซน: {entry.zone_name}</>}
+                      {entry.zone_name && entry.sender_name && ' · '}
+                      {entry.sender_name && <span className="text-blue-800">ผู้ส่ง: {entry.sender_name}</span>}
+                    </p>
                   </div>
-                  <div className="text-base">
-                    <strong>{entry.requester_name}</strong>
-                    {entry.zone_name && <span className="text-slate-500"> · {entry.zone_name}</span>}
-                    {entry.sender_name && <p className="text-sm text-blue-800">ผู้ส่ง: {entry.sender_name}</p>}
-                  </div>
-                  <p className="text-sm text-slate-600">
-                    <strong>{entry.requisition_details.length} รายการ:</strong>{' '}
-                    {summarizeItems(entry.requisition_details)}
-                  </p>
-                  <button onClick={() => onView(entry)} className={secondaryButton + ' w-full'}>
-                    ดูรายละเอียด
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
-      </div>
-    </>
+                </div>
+                <p className="text-xs font-semibold text-slate-600">
+                  <b className="text-slate-700">{entry.requisition_details.length} รายการ:</b> {summarizeItems(entry.requisition_details)}
+                </p>
+                <button onClick={() => onView(entry)} className={(entry.status === 'pending' ? ui.rowBtnPrimary : ui.rowBtn) + ' w-full'}>
+                  ดูรายละเอียด
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
   );
 }
+
 
 /* -------------------------------------------------------------------------- */
 /*  Page                                                                      */
@@ -610,18 +535,16 @@ export default function MyRequestsPage() {
     setPage(1);
   };
 
+
   return (
-    <main className="min-h-screen bg-[#e8edf5] px-3 py-6 text-slate-800 sm:px-6">
-      <div className="mx-auto max-w-6xl space-y-5">
-        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-blue-100 bg-white p-5">
-          <div>
-            <h1 className="text-xl font-black text-[#1a3a6e]">ประวัติการเบิก · {department.branch_name}</h1>
-            <p className="mt-1 text-sm text-slate-500">ใบเบิกทั้งหมดของแผนก · แก้ไขได้ขณะรออนุมัติ</p>
-          </div>
-          <Link href="/requisition" className="rounded-xl bg-[#1a3a6e] px-5 py-3 font-bold text-white">
-            + เบิกสินค้า
-          </Link>
-        </header>
+    <div className={ui.page}>
+      <div className={ui.wrap}>
+        <PageHero
+          icon="📋"
+          title={'ประวัติการเบิก · ' + department.branch_name}
+          subtitle="ใบเบิกทั้งหมดของแผนก · แก้ไขได้ขณะรออนุมัติ"
+          actions={<Link href="/requisition" className={ui.heroPrimary}>+ เบิกสินค้า</Link>}
+        />
 
         <StatusTabs counts={counts} active={status || 'all'} onSelect={selectStatus} />
 
@@ -635,40 +558,37 @@ export default function MyRequestsPage() {
           onRefresh={() => setRefreshKey((n) => n + 1)}
         />
 
-        {error && (
-          <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
-            {error}
-          </p>
+        {error && <Notice tone="error">{error}</Notice>}
+
+        <p className="px-1 text-xs font-semibold text-slate-500">
+          พบ <b className="text-[#1a3a6e]">{total.toLocaleString('th-TH')}</b> ใบเบิก{status && ` · ${REQUEST_STATUSES[status].label}`}
+        </p>
+
+        {loading ? (
+          <section className={ui.card} role="status" aria-busy="true">
+            <Skeleton rows={6} />
+          </section>
+        ) : rows.length === 0 ? (
+          <section className={ui.card}>
+            <EmptyState icon="📭" title="ไม่พบใบเบิกตามตัวกรอง" hint="ลองเปลี่ยนตัวกรองหรือช่วงวันที่" />
+          </section>
+        ) : (
+          <>
+            <RequestTable rows={rows} onView={setSelected} />
+            <div className={ui.card + ' px-5 py-4'}>
+              <ReportPagination page={page} totalRows={total} onChange={setPage} />
+            </div>
+          </>
         )}
 
-        <section className="overflow-hidden rounded-2xl border border-blue-100 bg-white">
-          <div className="border-b border-blue-100 p-4 text-lg font-bold text-blue-900">
-            พบ {total} ใบเบิก{status && ` · ${REQUEST_STATUSES[status].label}`}
-          </div>
-
-          {loading ? (
-            <p role="status" className="p-10 text-center">
-              กำลังโหลด...
-            </p>
-          ) : rows.length === 0 ? (
-            <p className="p-10 text-center text-base text-slate-500">ไม่พบใบเบิกตามตัวกรอง</p>
-          ) : (
-            <RequestTable rows={rows} onView={setSelected} />
-          )}
-
-          <div className="p-4">
-            <ReportPagination page={page} totalRows={total} onChange={setPage} />
-          </div>
-        </section>
-
         {selected && (
-          // Use the freshest copy from the latest fetch so the dialog stays in sync
+          // ใช้ข้อมูลล่าสุดจากการโหลดครั้งล่าสุด เพื่อให้หน้าต่างรายละเอียดตรงกับรายการ
           <RequestDetailDialog
             entry={rows.find((row) => row.id === selected.id) || selected}
             onClose={() => setSelected(null)}
           />
         )}
       </div>
-    </main>
+    </div>
   );
 }
