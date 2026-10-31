@@ -6,6 +6,6 @@
  .workspace [data-report-heading] a > div { min-height: 40px; display: inline-flex; align-items: center; }
  .workspace [data-report-presets] button { min-height: 32px; border-radius: 999px; font-size: 12px; padding: 5px 14px; }
  .workspace :where(table) { font-size: 13px; }
- .workspace :where(thead) { background-color: #eff6ff; color: #1a3a6e; }
+ .workspace :where(thead) { background-color: var(--color-brand-50); color: var(--color-brand-800); }
  .workspace :where(th) { font-size: 12px; }
 }

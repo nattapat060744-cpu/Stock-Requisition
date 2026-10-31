@@ -1,29 +1,59 @@
- .header {border-top:3px solid #c8a230;border-bottom:1px solid #dce5f0;background:#fff;box-shadow:0 3px 14px #18345b05;}
- .inner {max-width:1600px;margin:auto;padding-inline:clamp(16px,3vw,32px);}
- .top {display:flex;min-height:90px;align-items:center;justify-content:space-between;gap:24px;padding-block:14px;}
- .brand {display:flex;align-items:center;gap:14px;min-width:0;text-decoration:none;}
- .logo {width:52px;height:52px;border:1px solid #d9e5f5;border-radius:16px;padding:3px;background:white;box-shadow:0 3px 8px #1a3a6e0a;object-fit:contain;flex-shrink:0;}
- .wordmark {display:block;color:#18345b;font-size:21px;font-weight:900;line-height:1.4;letter-spacing:-.3px;}
- .tagline {display:flex;align-items:center;gap:7px;color:#8290a5;font-size:11px;font-weight:600;margin-top:2px;}
- .tagline::before {content:'';width:16px;height:2px;border-radius:2px;background:#c8a230;}
- .actions {display:flex;align-items:center;gap:12px;flex-shrink:0;}
- .identity {display:flex;align-items:center;gap:9px;padding-right:16px;border-right:1px solid #e7edf5;}
- .avatar {display:flex;width:35px;height:35px;align-items:center;justify-content:center;border-radius:50%;background:#eff4fc;color:#315485;}
- .caption {display:block;font-size:10px;color:#95a0b1;line-height:1.5;}
- .name {display:block;font-size:12px;font-weight:700;color:#30445f;line-height:1.6;}
- .shortcut,.logout {display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;padding:0 13px;white-space:nowrap;border-radius:10px;font-size:12px;font-weight:700;transition:background .15s,color .15s,border-color .15s;}
- .shortcut {border:1px solid #dae5f5;background:#f8faff;color:#274b7b;}
- .shortcut:hover {background:#eef4fe;border-color:#a8c0e3;}
- .logout {color:#7b889b;border:1px solid transparent;background:transparent;}
- .logout:hover {background:#fff1f2;color:#be354b;}
- .nav {display:flex;gap:7px;padding-block:10px;border-top:1px solid #edf1f7;overflow-x:auto;scrollbar-width:thin;}
- .tab {position:relative;display:flex;flex:1;min-width:125px;align-items:center;justify-content:center;gap:9px;height:46px;padding-inline:16px;white-space:nowrap;border:1px solid transparent;border-radius:11px;font-size:13px;font-weight:700;color:#6e7e93;transition:background .15s,color .15s,box-shadow .15s;}
- .tab:hover {background:#f1f5fb;color:#1a3a6e;}
- .icon {display:flex;align-items:center;justify-content:center;opacity:.8;}
- .active,.active:hover {color:white;background:linear-gradient(115deg,#1a3a6e,#294f88);border-color:#294d80;box-shadow:0 3px 8px #1a3a6e21;}
- .active::after {content:'';position:absolute;height:2px;width:23px;bottom:5px;border-radius:4px;background:#dfbc59;}
- .active .icon {opacity:1;}
- .notify {width:7px;height:7px;border-radius:50%;background:#f25e6a;box-shadow:0 0 0 2px white;}
- .header a:focus-visible,.header button:focus-visible {outline:2px solid #3b82f6;outline-offset:3px;}
- @media(max-width:760px) {.top {flex-wrap:wrap;gap:14px;min-height:0;}.logo{width:44px;height:44px;border-radius:13px}.wordmark{font-size:18px}.actions{width:100%;justify-content:space-between;gap:6px}.identity{padding-right:10px;flex:1}.shortcut,.logout{padding-inline:10px}.tab{min-width:120px;flex:none}.nav{margin-top:2px}}
- @media print {.header{display:none}}
+/* เมนูหลังบ้านโทนสว่าง พร้อมแถบเลื่อนแนวนอนบนมือถือ */
+.sidebar {position:relative;isolation:isolate;display:flex;flex-direction:column;gap:6px;color:#475569;border-bottom:1px solid #e2e8f0;
+ background:#fff;}
+.brand {display:flex;align-items:center;gap:12px;padding:18px 18px 14px;text-decoration:none;min-width:0;}
+.brandText {display:block;min-width:0;}
+.wordmark {display:block;color:#172554;font-size:18px;font-weight:800;line-height:1.3;letter-spacing:-.2px;}
+.tagline {display:block;color:#64748b;font-size:11px;font-weight:500;margin-top:1px;}
+.nav {display:flex;flex-direction:column;gap:3px;padding:8px 12px;overflow-y:auto;flex:1;}
+.section {display:none;color:#94a3b8;font-size:10.5px;font-weight:700;letter-spacing:.08em;padding:6px 10px 6px;}
+.tab {position:relative;display:flex;align-items:center;gap:11px;height:44px;padding-inline:12px;white-space:nowrap;border-radius:10px;font-size:14px;font-weight:600;color:#475569;
+ transition:background .2s,color .2s,transform .2s,box-shadow .25s;animation:slideIn .5s cubic-bezier(.2,.7,.2,1) both;}
+.tab:nth-of-type(1){animation-delay:.05s}.tab:nth-of-type(2){animation-delay:.1s}.tab:nth-of-type(3){animation-delay:.15s}
+.tab:nth-of-type(4){animation-delay:.2s}.tab:nth-of-type(5){animation-delay:.25s}.tab:nth-of-type(6){animation-delay:.3s}
+@keyframes slideIn {from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+.tab:hover {background:#f1f5f9;color:#1e293b;transform:translateX(2px);}
+.tab:active {transform:translateX(3px) scale(.98);}
+.icon {display:flex;align-items:center;justify-content:center;opacity:.85;flex-shrink:0;transition:transform .25s cubic-bezier(.34,1.56,.64,1);}
+.tab:hover .icon {transform:scale(1.18) rotate(-6deg);opacity:1;}
+.label {flex:1;}
+.active,.active:hover {color:var(--color-brand-700);background:var(--color-brand-50);box-shadow:inset 0 0 0 1px var(--color-brand-100);transform:none;}
+.active .icon {opacity:1;color:var(--color-brand-600);}
+.active::before {content:'';position:absolute;left:-12px;top:10px;bottom:10px;width:3px;border-radius:0 4px 4px 0;background:var(--color-brand-600);}
+.notify {position:relative;display:inline-flex;min-width:20px;height:20px;align-items:center;justify-content:center;padding-inline:6px;border-radius:999px;background:var(--color-brand-600);color:#fff;font-size:11px;font-weight:800;line-height:1;box-shadow:0 2px 8px #3154e833;animation:pop .4s cubic-bezier(.34,1.56,.64,1) both;}
+.notify::after {content:'';position:absolute;inset:0;border-radius:inherit;background:var(--color-brand-600);z-index:-1;animation:ping 2s cubic-bezier(0,0,.2,1) infinite;}
+@keyframes ping {0%{transform:scale(1);opacity:.6}75%,100%{transform:scale(1.9);opacity:0}}
+@keyframes pop {from{transform:scale(0)}to{transform:scale(1)}}
+.footer {display:flex;flex-direction:column;gap:10px;padding:12px;border-top:1px solid #e2e8f0;}
+.identity {display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;background:#f8fafc;box-shadow:inset 0 0 0 1px #e2e8f0;}
+.avatar {display:flex;width:34px;height:34px;align-items:center;justify-content:center;border-radius:50%;background:var(--color-brand-100);color:var(--color-brand-700);flex-shrink:0;}
+.identityText {display:block;min-width:0;}
+.caption {display:block;font-size:10.5px;color:#64748b;line-height:1.4;}
+.name {display:block;font-size:13px;font-weight:700;color:#1e293b;line-height:1.5;}
+.actions {display:flex;flex-direction:column;gap:6px;}
+.shortcut,.logout {display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 13px;white-space:nowrap;border-radius:12px;font-size:13px;font-weight:700;transition:background .2s,color .2s,border-color .2s,transform .2s;}
+.shortcut {border:1px solid #dbe3ee;background:#fff;color:#475569;}
+.shortcut:hover {background:#f8fafc;border-color:#cbd5e1;transform:translateY(-1px);}
+.logout {color:#64748b;border:1px solid transparent;background:transparent;}
+.logout:hover {background:#fef2f2;color:#b91c1c;}
+.sidebar a:focus-visible,.sidebar button:focus-visible {outline:2px solid #93c5fd;outline-offset:2px;}
+
+@media(min-width:1024px) {
+ .sidebar {position:sticky;top:0;height:100dvh;border-bottom:0;border-right:1px solid #e2e8f0;}
+ .section {display:block;}
+}
+@media(max-width:1023px) {
+ .sidebar {flex-direction:row;flex-wrap:wrap;align-items:center;gap:0;}
+ .brand {padding:12px 16px;flex:1;}
+ .footer {order:2;flex-direction:row;align-items:center;border-top:0;padding:8px 12px;}
+ .identity {display:none;}
+ .actions {flex-direction:row;}
+ .shortcut {display:none;}
+ .logout {height:36px;font-size:12px;}
+ .nav {order:3;width:100%;flex:none;flex-direction:row;overflow-x:auto;overflow-y:hidden;padding:6px 12px 10px;gap:6px;scrollbar-width:none;}
+ .tab {height:40px;font-size:13px;flex:none;}
+ .label {flex:none;}
+ .active::before {display:none;}
+}
+@media(prefers-reduced-motion:reduce) {.notify::after{animation:none}}
+@media print {.sidebar{display:none}}

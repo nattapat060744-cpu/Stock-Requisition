@@ -90,7 +90,7 @@ function ChangeTag({ prev, cur }: { prev: number; cur: number }) {
 }
 
 function CompareTable({ c, rows, offset, rowHeader }: { c: Compare; rows: CompareRow[]; offset: number; rowHeader: string }) {
-  const th = 'sticky top-0 z-10 whitespace-nowrap bg-[#1a3a6e] px-3 py-2.5 text-center text-xs font-bold text-white';
+  const th = 'sticky top-0 z-10 whitespace-nowrap bg-brand-700 px-3 py-2.5 text-center text-xs font-bold text-white';
   const n = c.months.length;
   const multi = n >= 2; // มีคอลัมน์ "เปลี่ยนแปลง" เมื่อเลือกตั้งแต่ 2 เดือน
   const trend = n > 2; // เลือกเกิน 2 เดือน แสดง % เทียบเดือนก่อนหน้าใต้ตัวเลขทุกช่อง
@@ -104,7 +104,7 @@ function CompareTable({ c, rows, offset, rowHeader }: { c: Compare; rows: Compar
 
   return (
     <GridGuide>
-      <div className="max-h-[70vh] overflow-auto rounded-xl border border-blue-100 print:max-h-none print:overflow-visible">
+      <div className="max-h-[70vh] overflow-auto rounded-xl border border-slate-200 print:max-h-none print:overflow-visible">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
@@ -113,13 +113,13 @@ function CompareTable({ c, rows, offset, rowHeader }: { c: Compare; rows: Compar
               {c.months.map((m, j) => (
                 <th key={m} data-c={j} className={th} style={{ minWidth: 120 }}>{monthLabel(m)}</th>
               ))}
-              <th data-c="s" className={th + ' bg-blue-900'}>รวม</th>
-              {multi && <th data-c="d" className={th + ' bg-blue-900'}>เปลี่ยนแปลง<br />{deltaHead}</th>}
+              <th data-c="s" className={th + ' bg-brand-900'}>รวม</th>
+              {multi && <th data-c="d" className={th + ' bg-brand-900'}>เปลี่ยนแปลง<br />{deltaHead}</th>}
             </tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={r.key} className="border-t border-blue-50 odd:bg-white even:bg-blue-50/30">
+              <tr key={r.key} className="border-t border-slate-100 odd:bg-white even:bg-brand-50/30">
                 <td data-r={i} className="sticky left-0 bg-inherit px-1 py-2 text-center text-xs font-semibold tabular-nums text-slate-400" style={NUM_STYLE}>
                   {offset + i + 1}
                 </td>
@@ -132,7 +132,7 @@ function CompareTable({ c, rows, offset, rowHeader }: { c: Compare; rows: Compar
                     {trend && j > 0 && <div><ChangeTag prev={r.values[j - 1]} cur={v} /></div>}
                   </td>
                 ))}
-                <td data-r={i} data-c="s" className="bg-blue-50 px-3 py-2 text-right font-bold tabular-nums text-blue-900">{fmt(r.total)}</td>
+                <td data-r={i} data-c="s" className="bg-brand-50 px-3 py-2 text-right font-bold tabular-nums text-brand-900">{fmt(r.total)}</td>
                 {multi && (
                   <td data-r={i} data-c="d" className="px-3 py-2 text-right tabular-nums">
                     <span className="font-bold text-slate-700">{diff(r.values[0], r.values[n - 1])}</span>
@@ -143,9 +143,9 @@ function CompareTable({ c, rows, offset, rowHeader }: { c: Compare; rows: Compar
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-blue-200 bg-blue-100 font-black text-blue-950">
-              <th data-r="t" className="sticky left-0 bg-blue-100" style={NUM_STYLE} />
-              <th scope="row" data-r="t" className="sticky bg-blue-100 px-3 py-2.5 text-left text-xs" style={{ left: NUM_W }}>รวม</th>
+            <tr className="border-t-2 border-brand-200 bg-brand-100 font-black text-brand-950">
+              <th data-r="t" className="sticky left-0 bg-brand-100" style={NUM_STYLE} />
+              <th scope="row" data-r="t" className="sticky bg-brand-100 px-3 py-2.5 text-left text-xs" style={{ left: NUM_W }}>รวม</th>
               {colTotals.map((v, j) => (
                 <td key={j} data-r="t" data-c={j} className="px-3 py-2.5 text-right tabular-nums">
                   {fmt(v)}
@@ -195,7 +195,7 @@ function CompareSection(props: {
   const maxTotal = Math.max(1, ...(compare?.monthTotals ?? [0]));
   const rows = compare?.rows ?? [];
   const offset = (page - 1) * COMPARE_PAGE_SIZE;
-  const quick = 'rounded-xl border border-blue-100 bg-white px-3 py-1.5 text-xs font-bold text-blue-900 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-700';
+  const quick = 'rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-brand-900 hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-brand-700';
 
   if (availableMonths.length === 0) {
     return <p className="py-10 text-center text-sm text-slate-400">ยังไม่มีข้อมูลการเบิกให้เปรียบเทียบ</p>;
@@ -215,7 +215,7 @@ function CompareSection(props: {
                 aria-pressed={on}
                 disabled={!on && full}
                 onClick={() => onToggle(m)}
-                className={'rounded-full border px-4 py-1.5 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-blue-700 disabled:cursor-not-allowed disabled:opacity-40 ' + (on ? 'border-[#1a3a6e] bg-[#1a3a6e] text-white' : 'border-blue-100 bg-blue-50/40 text-slate-600 hover:bg-blue-100')}
+                className={'rounded-full border px-4 py-1.5 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-brand-700 disabled:cursor-not-allowed disabled:opacity-40 ' + (on ? 'border-brand-700 bg-brand-700 text-white' : 'border-slate-200 bg-brand-50/40 text-slate-600 hover:bg-brand-100')}
               >
                 {monthShort(m)}
               </button>
@@ -233,14 +233,14 @@ function CompareSection(props: {
 
       <div role="group" aria-label="เปรียบเทียบตาม" className="text-xs font-bold text-slate-500 print:hidden">
         เปรียบเทียบตาม
-        <div className="mt-1 inline-flex overflow-hidden rounded-xl border border-blue-100 align-middle">
+        <div className="mt-1 inline-flex overflow-hidden rounded-xl border border-slate-200 align-middle">
           {COMPARE_BY_OPTIONS.map((o) => (
             <button
               key={o.value}
               type="button"
               aria-pressed={by === o.value}
               onClick={() => onBy(o.value)}
-              className={'h-10 px-4 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-700 ' + (by === o.value ? 'bg-[#1a3a6e] text-white' : 'bg-white text-slate-600 hover:bg-blue-50')}
+              className={'h-10 px-4 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-700 ' + (by === o.value ? 'bg-brand-700 text-white' : 'bg-white text-slate-600 hover:bg-brand-50')}
             >
               {o.label}
             </button>
@@ -257,16 +257,16 @@ function CompareSection(props: {
               const total = compare.monthTotals[j];
               const days = compare.activeDays[j];
               return (
-                <div key={m} className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
-                  <p className="flex flex-wrap items-center gap-2 text-sm font-black text-[#1a3a6e]">
+                <div key={m} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="flex flex-wrap items-center gap-2 text-sm font-black text-brand-700">
                     {monthLabel(m)}
                     {m === nowMonth && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">ยังไม่ครบเดือน</span>}
                   </p>
-                  <p className="mt-1 text-xl font-black tabular-nums text-[#1a3a6e]">
+                  <p className="mt-1 text-xl font-black tabular-nums text-brand-700">
                     {fmt(total)} <span className="text-xs font-semibold text-slate-400">{unit}</span>
                   </p>
-                  <div className="mt-2 h-2 rounded-full bg-blue-50" aria-hidden="true">
-                    <div className="h-2 rounded-full bg-[#1a3a6e]" style={{ width: `${(total / maxTotal) * 100}%` }} />
+                  <div className="mt-2 h-2 rounded-full bg-brand-50" aria-hidden="true">
+                    <div className="h-2 rounded-full bg-brand-700" style={{ width: `${(total / maxTotal) * 100}%` }} />
                   </div>
                   <p className="mt-2 text-xs text-slate-500">
                     เบิก {days} วัน · เฉลี่ย {days ? fmt(total / days) : '-'} {unit}/วัน
@@ -458,7 +458,7 @@ export default function SupplyCompareReports() {
     const styleHeader = (row: ExcelJS.Row) => {
       row.eachCell((c) => {
         c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A3A6E' } };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4338CA' } };
         c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
         c.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
       });
@@ -539,7 +539,7 @@ export default function SupplyCompareReports() {
                 type="button"
                 onClick={refresh}
                 disabled={!raw || reloading}
-                className="inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-white px-4 py-2.5 text-sm font-bold text-blue-700 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50/50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-brand-700 shadow-sm transition-all hover:border-brand-300 hover:bg-brand-50/50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <span>🔄</span><span>{reloading ? 'กำลังโหลด...' : 'รีเฟรช'}</span>
               </button>
@@ -565,14 +565,14 @@ export default function SupplyCompareReports() {
         <div className="flex flex-wrap items-end gap-3">
           <div role="group" aria-label="แสดงตัวเลขเป็น" className="text-xs font-bold text-slate-500">
             แสดงตัวเลขเป็น
-            <div className="mt-1 flex overflow-hidden rounded-xl border border-blue-100">
+            <div className="mt-1 flex overflow-hidden rounded-xl border border-slate-200">
               {([['cost', 'ยอดเงิน (บาท)'], ['qty', 'จำนวนชิ้น']] as const).map(([value, label]) => (
                 <button
                   key={value}
                   type="button"
                   aria-pressed={measure === value}
                   onClick={() => setMeasure(value)}
-                  className={'h-10 px-4 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-700 ' + (measure === value ? 'bg-[#1a3a6e] text-white' : 'bg-white text-slate-600 hover:bg-blue-50')}
+                  className={'h-10 px-4 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-700 ' + (measure === value ? 'bg-brand-700 text-white' : 'bg-white text-slate-600 hover:bg-brand-50')}
                 >
                   {label}
                 </button>
@@ -594,7 +594,7 @@ export default function SupplyCompareReports() {
             </select>
           </label>
           <label className="flex h-10 items-center gap-2 text-sm font-semibold text-slate-600">
-            <input type="checkbox" checked={hideEmpty} onChange={(e) => { setHideEmpty(e.target.checked); setPage(1); }} className="h-4 w-4 accent-[#1a3a6e]" />
+            <input type="checkbox" checked={hideEmpty} onChange={(e) => { setHideEmpty(e.target.checked); setPage(1); }} className="h-4 w-4 accent-brand-700" />
             ซ่อนแถวที่ไม่มียอด
           </label>
         </div>
@@ -611,7 +611,7 @@ export default function SupplyCompareReports() {
               ข้อมูล ณ {new Date(loadedAt).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Bangkok' })} น. · กด “รีเฟรช” เพื่อดึงข้อมูลล่าสุด
             </p>
           )}
-          <section className="space-y-4 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-xs font-semibold text-slate-500">
               {measure === 'cost'
                 ? 'ตัวเลขในหน้านี้เป็นยอดเงิน (บาท) = จำนวน × ราคาตอนเบิก'

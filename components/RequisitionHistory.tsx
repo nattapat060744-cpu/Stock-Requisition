@@ -241,7 +241,7 @@ export default function RequisitionHistory() {
             detail ? detail.quantity * detail.price_at_time : null,
           ])
         ),
-        'Sampeng-requisition-history.xlsx',
+        'requisition-history.xlsx',
         'ชื่อ: ' + (filters.name || 'ทุกคน') + ' · แผนก: ' + (filters.branch || 'ทั้งหมด') + ' · โซน: ' + (filters.zone || 'ทั้งหมด')
       );
     } catch (e) {
@@ -356,7 +356,7 @@ export default function RequisitionHistory() {
               onClick={() => handleApplyPreset(preset.id as Parameters<typeof handleApplyPreset>[0])}
               className={`px-3.5 py-1 rounded-full text-xs font-bold transition-all ${
                 activePreset === preset.id
-                  ? 'bg-[#1a3a6e] text-white shadow-xs'
+                  ? 'bg-brand-700 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -378,7 +378,7 @@ export default function RequisitionHistory() {
               <label className="text-[11px] font-bold text-slate-600 block mb-1">วันที่เอกสาร ตั้งแต่วันที่</label>
               <input
                 type="date"
-                className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-300 transition-all"
+                className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-300 transition-all"
                 value={draft.from}
                 onChange={(e) => {
                   setDraft({ ...draft, from: e.target.value });
@@ -390,7 +390,7 @@ export default function RequisitionHistory() {
               <label className="text-[11px] font-bold text-slate-600 block mb-1">ถึงวันที่</label>
               <input
                 type="date"
-                className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-300 transition-all"
+                className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-300 transition-all"
                 value={draft.to}
                 onChange={(e) => {
                   setDraft({ ...draft, to: e.target.value });
@@ -401,7 +401,7 @@ export default function RequisitionHistory() {
             <div>
               <label className="text-[11px] font-bold text-slate-600 block mb-1">แผนก / โซน</label>
               <select
-                className="h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-300 transition-all cursor-pointer"
+                className="h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-300 transition-all cursor-pointer"
                 value={draft.branch}
                 onChange={(e) => setDraft({ ...draft, branch: e.target.value, zone: '' })}
               >
@@ -414,7 +414,7 @@ export default function RequisitionHistory() {
             <div>
               <label className="text-[11px] font-bold text-slate-600 block mb-1">สถานะ</label>
               <select
-                className="h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-300 transition-all cursor-pointer"
+                className="h-9 w-full rounded-xl border border-slate-200 bg-white px-2.5 text-xs font-medium outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-300 transition-all cursor-pointer"
                 value={draft.status}
                 onChange={(e) => setDraft({ ...draft, status: e.target.value })}
               >
@@ -427,7 +427,7 @@ export default function RequisitionHistory() {
               <label className="text-[11px] font-bold text-slate-600 block mb-1">ค้นหา</label>
               <div className="flex gap-1.5">
                 <input
-                  className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-300 transition-all"
+                  className="h-9 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-300 transition-all"
                   placeholder="เลข PO / แหล่งที่มา / รหัส / ชื่อสินค้า..."
                   value={draft.name}
                   onChange={(e) => setDraft({ ...draft, name: e.target.value })}
@@ -439,7 +439,7 @@ export default function RequisitionHistory() {
           {/* Bottom Bar: Total Items & Reset Link */}
           <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
             <span className="font-semibold text-slate-500">
-              พบ <span className="text-blue-900 font-black">{total}</span> รายการใบเบิก
+              พบ <span className="text-brand-900 font-black">{total}</span> รายการใบเบิก
             </span>
             <button
               type="button"
@@ -448,7 +448,7 @@ export default function RequisitionHistory() {
                 setActivePreset('all');
                 apply(empty);
               }}
-              className="text-blue-700 font-bold hover:underline transition-all"
+              className="text-brand-700 font-bold hover:underline transition-all"
             >
               ล้างตัวกรองทั้งหมด
             </button>
@@ -457,10 +457,10 @@ export default function RequisitionHistory() {
       </div>
 
       {/* ── CARD 2: SUMMARY STAT BANNER ── */}
-      <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-xs space-y-4 text-center">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4 text-center">
         <div>
-          <p className="text-[10px] font-black text-blue-800 tracking-widest uppercase">สำเพ็ง บุรีรัมย์ REPORT</p>
-          <h2 className="text-lg font-black text-blue-950 mt-0.5">รายงานประวัติการเบิกสินค้าพนักงานรายคน</h2>
+          <p className="text-[10px] font-black text-brand-800 tracking-widest uppercase">ระบบเบิกของ REPORT</p>
+          <h2 className="text-lg font-black text-brand-950 mt-0.5">รายงานประวัติการเบิกสินค้าพนักงานรายคน</h2>
           <p className="text-xs text-slate-400 font-medium mt-0.5">
             ตั้งแต่วันที่: {filters.from || 'ทั้งหมด'} ถึง {filters.to || 'ทั้งหมด'}
           </p>
@@ -468,19 +468,19 @@ export default function RequisitionHistory() {
 
         {/* 4 Cards Stat Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="rounded-xl border border-blue-100 bg-blue-50/30 p-4 text-center">
+          <div className="rounded-xl border border-slate-200 bg-brand-50/30 p-4 text-center">
             <p className="text-[11px] font-bold text-slate-500">จำนวนใบเบิก</p>
-            <p className="mt-1 text-2xl font-black text-blue-950">{totalRequisitions} ใบ</p>
+            <p className="mt-1 text-2xl font-black text-brand-950">{totalRequisitions} ใบ</p>
           </div>
-          <div className="rounded-xl border border-blue-100 bg-blue-50/30 p-4 text-center">
+          <div className="rounded-xl border border-slate-200 bg-brand-50/30 p-4 text-center">
             <p className="text-[11px] font-bold text-slate-500">มูลค่าอนุมัติรวม</p>
             <p className="mt-1 text-2xl font-black text-emerald-600">{totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฿</p>
           </div>
-          <div className="rounded-xl border border-blue-100 bg-blue-50/30 p-4 text-center">
+          <div className="rounded-xl border border-slate-200 bg-brand-50/30 p-4 text-center">
             <p className="text-[11px] font-bold text-slate-500">อนุมัติแล้ว</p>
-            <p className="mt-1 text-2xl font-black text-blue-700">{approvedRequisitions} ใบ</p>
+            <p className="mt-1 text-2xl font-black text-brand-700">{approvedRequisitions} ใบ</p>
           </div>
-          <div className="rounded-xl border border-blue-100 bg-blue-50/30 p-4 text-center">
+          <div className="rounded-xl border border-slate-200 bg-brand-50/30 p-4 text-center">
             <p className="text-[11px] font-bold text-slate-500">รออนุมัติ</p>
             <p className="mt-1 text-2xl font-black text-amber-600">{pendingRequisitions} ใบ</p>
           </div>
@@ -490,11 +490,11 @@ export default function RequisitionHistory() {
       {error && <p role="alert" className="rounded-xl bg-red-50 p-4 text-xs font-bold text-red-700">{error}</p>}
 
       {/* ── CARD 3: DATA TABLE ── */}
-      <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-blue-50 pb-3">
-          <h3 className="text-sm font-black text-blue-950">รายละเอียดประวัติการเบิก</h3>
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h3 className="text-sm font-black text-brand-950">รายละเอียดประวัติการเบิก</h3>
           <p className="text-xs font-bold text-slate-500">
-            แสดงผลหน้า <span className="text-blue-900 font-black">{page}</span> ({rows.length} รายการ)
+            แสดงผลหน้า <span className="text-brand-900 font-black">{page}</span> ({rows.length} รายการ)
           </p>
         </div>
 
@@ -504,7 +504,7 @@ export default function RequisitionHistory() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-blue-50/60 text-blue-950 border-b border-blue-100 font-bold">
+                <tr className="bg-brand-50/60 text-brand-950 border-b border-slate-200 font-bold">
                   <th className="w-14 py-3 px-3.5 text-center">ลำดับ</th>
                   <th className="py-3 px-3.5">วันเวลา</th>
                   <th className="py-3 px-3.5">ผู้เบิก</th>
@@ -515,14 +515,14 @@ export default function RequisitionHistory() {
                   <th className="py-3 px-3.5 text-center">รายละเอียด</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-blue-50">
+              <tbody className="divide-y divide-slate-100">
                 {rows.map((entry, index) => {
                   const entryTotal = entry.requisition_details.reduce(
                     (sum, d) => sum + (d.quantity || 0) * (d.price_at_time || 0),
                     0
                   );
                   return (
-                    <tr key={entry.id} className="hover:bg-blue-50/30 transition-colors">
+                    <tr key={entry.id} className="hover:bg-brand-50/30 transition-colors">
                       <td className="py-3.5 px-3.5 text-center text-[11px] font-semibold tabular-nums text-slate-400">
                         {(page - 1) * 20 + index + 1}
                       </td>
@@ -535,7 +535,7 @@ export default function RequisitionHistory() {
                       <td className="py-3.5 px-3.5">
                         <span className="font-semibold text-slate-700">{entry.branch_name}</span>
                         {entry.zone_name && (
-                          <span className="block text-[10px] text-blue-600 font-medium">โซน: {entry.zone_name}</span>
+                          <span className="block text-[10px] text-brand-600 font-medium">โซน: {entry.zone_name}</span>
                         )}
                       </td>
                       <td className="py-3.5 px-3.5">
@@ -544,14 +544,14 @@ export default function RequisitionHistory() {
                       <td className="py-3.5 px-3.5 text-right font-bold text-slate-700">
                         {entry.requisition_details.length} รายการ
                       </td>
-                      <td className="py-3.5 px-3.5 text-right font-black text-blue-950 text-xs">
+                      <td className="py-3.5 px-3.5 text-right font-black text-brand-950 text-xs">
                         {entryTotal.toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฿
                       </td>
                       <td className="py-3.5 px-3.5 text-center">
                         <button
                           type="button"
                           onClick={() => setActiveEntry(entry)}
-                          className="px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50/70 hover:bg-blue-100 text-blue-800 text-xs font-bold transition-all active:scale-95"
+                          className="px-3 py-1.5 rounded-lg border border-brand-200 bg-brand-50/70 hover:bg-brand-100 text-brand-800 text-xs font-bold transition-all active:scale-95"
                         >
                           🔍 ดูสินค้า
                         </button>
@@ -592,8 +592,8 @@ export default function RequisitionHistory() {
           }}
           className="fixed inset-0 m-auto h-dvh w-screen border-0 bg-transparent p-4 outline-none backdrop:bg-slate-950/70 open:flex open:items-center open:justify-center z-65"
         >
-          <div className="relative w-full max-w-md rounded-2xl border border-blue-100 bg-white overflow-hidden shadow-2xl space-y-0">
-            <div className="bg-[#1a3a6e] px-5 py-4 text-white flex items-center justify-between">
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-2xl space-y-0">
+            <div className="bg-brand-700 px-5 py-4 text-white flex items-center justify-between">
               <h3 className="text-sm font-black flex items-center gap-2">
                 📅 ส่งออกรายงานประวัติการเบิกประจำเดือน
               </h3>
@@ -615,7 +615,7 @@ export default function RequisitionHistory() {
                 <div>
                   <label className="text-[11px] font-bold text-slate-600 block mb-1">เลือกเดือน</label>
                   <select
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-800 outline-none focus:border-blue-500"
+                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-500"
                     value={selectedMonth}
                     onChange={(e) => setSelectedMonth(Number(e.target.value))}
                   >
@@ -630,7 +630,7 @@ export default function RequisitionHistory() {
                 <div>
                   <label className="text-[11px] font-bold text-slate-600 block mb-1">เลือกปี (ค.ศ.)</label>
                   <select
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-800 outline-none focus:border-blue-500"
+                    className="h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-800 outline-none focus:border-brand-500"
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(Number(e.target.value))}
                   >
@@ -674,13 +674,13 @@ export default function RequisitionHistory() {
           }}
           className="fixed inset-0 m-auto h-dvh w-screen border-0 bg-transparent p-4 outline-none backdrop:bg-slate-950/70 open:flex open:items-center open:justify-center z-60"
         >
-          <div className="relative w-full max-w-2xl rounded-2xl border border-blue-100 bg-white overflow-hidden shadow-2xl space-y-0">
-            <div className="bg-[#1a3a6e] px-6 py-4 text-white flex items-center justify-between">
+          <div className="relative w-full max-w-2xl rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-2xl space-y-0">
+            <div className="bg-brand-700 px-6 py-4 text-white flex items-center justify-between">
               <div>
                 <h3 className="text-base font-black flex items-center gap-2">
                   📄 รายละเอียดใบเบิก
                 </h3>
-                <p className="text-xs text-blue-200 font-medium mt-0.5">
+                <p className="text-xs text-brand-200 font-medium mt-0.5">
                   {activeEntry.branch_name} {activeEntry.zone_name && `(${activeEntry.zone_name})`} · {activeEntry.requester_name}
                 </p>
               </div>
@@ -694,7 +694,7 @@ export default function RequisitionHistory() {
             </div>
 
             <div className="p-6 space-y-5 max-h-[75dvh] overflow-y-auto">
-              <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 grid grid-cols-2 gap-4 text-xs">
+              <div className="rounded-xl border border-slate-200 bg-brand-50/40 p-4 grid grid-cols-2 gap-4 text-xs">
                 <div>
                   <p className="text-slate-400 font-bold mb-0.5">ผู้เบิก</p>
                   <p className="text-slate-800 font-black text-sm">{activeEntry.requester_name}</p>
@@ -702,7 +702,7 @@ export default function RequisitionHistory() {
                 <div>
                   <p className="text-slate-400 font-bold mb-0.5">แผนก / โซน</p>
                   <p className="text-slate-800 font-black text-sm">{activeEntry.branch_name}</p>
-                  {activeEntry.zone_name && <p className="text-blue-600 font-bold">โซน: {activeEntry.zone_name}</p>}
+                  {activeEntry.zone_name && <p className="text-brand-600 font-bold">โซน: {activeEntry.zone_name}</p>}
                 </div>
                 <div>
                   <p className="text-slate-400 font-bold mb-0.5">วันที่</p>
@@ -713,7 +713,7 @@ export default function RequisitionHistory() {
                   <StatusBadge status={activeEntry.status} />
                 </div>
                 {activeEntry.sender_name && (
-                  <div className="col-span-2 pt-2 border-t border-blue-100/60">
+                  <div className="col-span-2 pt-2 border-t border-slate-200/60">
                     <p className="text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200/60 font-medium text-[11px]">
                       หัวหน้า / รองหัวหน้าผู้ส่ง: {activeEntry.sender_name}
                     </p>
@@ -723,14 +723,14 @@ export default function RequisitionHistory() {
 
               <div className="space-y-3 text-sm"><p className="whitespace-pre-wrap wrap-break-word"><strong>หมายเหตุใบเบิก:</strong> {activeEntry.note||'—'}</p><p className="whitespace-pre-wrap wrap-break-word"><strong>หมายเหตุผู้ตรวจสอบ:</strong> {activeEntry.admin_note||'—'}</p><RequestedItems original={activeEntry.requested_items} current={activeEntry.requisition_details} status={activeEntry.status}/></div>
               <div className="space-y-3">
-                <p className="text-xs font-black text-blue-900 uppercase tracking-wider">
+                <p className="text-xs font-black text-brand-900 uppercase tracking-wider">
                   รายการสินค้าที่เบิก ({activeEntry.requisition_details.length} รายการ)
                 </p>
 
-                <div className="overflow-hidden rounded-xl border border-blue-100">
+                <div className="overflow-hidden rounded-xl border border-slate-200">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-blue-50/70 text-slate-600 font-bold border-b border-blue-100">
+                      <tr className="bg-brand-50/70 text-slate-600 font-bold border-b border-slate-200">
                         <th className="w-12 py-2.5 px-3 text-center">ลำดับ</th>
                         <th className="py-2.5 px-3">สินค้า</th>
                         <th className="py-2.5 px-3 text-right">จำนวน</th>
@@ -739,9 +739,9 @@ export default function RequisitionHistory() {
                         <th className="py-2.5 px-3 text-right">มูลค่ารวม</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-blue-50">
+                    <tbody className="divide-y divide-slate-100">
                       {activeEntry.requisition_details.map((detail, index) => (
-                        <tr key={detail.id} className="hover:bg-blue-50/20">
+                        <tr key={detail.id} className="hover:bg-brand-50/20">
                           <td className="py-3 px-3 text-center text-[11px] font-semibold tabular-nums text-slate-400">{index + 1}</td>
                           <td className="py-3 px-3 font-bold text-slate-800">
                             <div className="flex items-center gap-2">
@@ -757,7 +757,7 @@ export default function RequisitionHistory() {
                               <span>{detail.items?.name || '—'}</span>
                             </div>
                           </td>
-                          <td className="py-3 px-3 text-right font-black text-blue-900">
+                          <td className="py-3 px-3 text-right font-black text-brand-900">
                             {detail.quantity}
                           </td>
                           <td className="py-3 px-3 text-slate-600 font-medium">
@@ -766,7 +766,7 @@ export default function RequisitionHistory() {
                           <td className="py-3 px-3 text-right text-slate-600 font-medium">
                             {detail.price_at_time.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                           </td>
-                          <td className="py-3 px-3 text-right font-black text-blue-900">
+                          <td className="py-3 px-3 text-right font-black text-brand-900">
                             {(detail.quantity * detail.price_at_time).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฿
                           </td>
                         </tr>
@@ -775,9 +775,9 @@ export default function RequisitionHistory() {
                   </table>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 px-2 text-sm font-black text-blue-900">
+                <div className="flex items-center justify-between pt-2 px-2 text-sm font-black text-brand-900">
                   <span>รวมเป็นเงินทั้งสิ้น</span>
-                  <span className="text-base text-blue-950">
+                  <span className="text-base text-brand-950">
                     {activeEntry.requisition_details
                       .reduce((sum, d) => sum + d.quantity * d.price_at_time, 0)
                       .toLocaleString('th-TH', { minimumFractionDigits: 2 })}{' '}
@@ -791,7 +791,7 @@ export default function RequisitionHistory() {
               <button
                 type="button"
                 onClick={() => detailDialogRef.current?.close()}
-                className="w-full rounded-xl bg-blue-50 border border-blue-200 py-2.5 text-xs font-bold text-blue-800 hover:bg-blue-100 transition-all active:scale-98"
+                className="w-full rounded-xl bg-brand-50 border border-brand-200 py-2.5 text-xs font-bold text-brand-800 hover:bg-brand-100 transition-all active:scale-98"
               >
                 ปิดหน้าต่าง
               </button>
@@ -811,7 +811,7 @@ export default function RequisitionHistory() {
           }}
           className="fixed inset-0 m-auto h-dvh w-screen border-0 bg-transparent p-4 outline-none backdrop:bg-slate-950/80 open:flex open:items-center open:justify-center z-70"
         >
-          <div className="relative max-w-2xl rounded-2xl border border-blue-100 bg-white p-4 shadow-2xl">
+          <div className="relative max-w-2xl rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
             <button
               type="button"
               onClick={() => imageDialogRef.current?.close()}

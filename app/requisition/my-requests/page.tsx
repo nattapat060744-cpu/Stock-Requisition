@@ -140,7 +140,7 @@ function StatusBadge({ value }: { value: RequestStatus }) {
 
 function Avatar({ name }: { name: string }) {
   return (
-    <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-black text-blue-800">
+    <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-black text-brand-800">
       {(name || '?').trim().slice(0, 1)}
     </span>
   );
@@ -151,12 +151,12 @@ function ItemLine({ line }: { line: Line }) {
   return (
     <div className="flex items-center gap-3 py-3">
       {item?.image_url ? (
-        <Image unoptimized width={48} height={48} src={item.image_url} alt={item.name} className="h-12 w-12 rounded-lg border border-blue-100 object-contain" />
+        <Image unoptimized width={48} height={48} src={item.image_url} alt={item.name} className="h-12 w-12 rounded-lg border border-slate-200 object-contain" />
       ) : (
-        <span aria-hidden="true" className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50">📦</span>
+        <span aria-hidden="true" className="flex h-12 w-12 items-center justify-center rounded-lg bg-brand-50">📦</span>
       )}
       <span className="min-w-0 flex-1 text-sm font-bold text-slate-700">{item?.name || 'สินค้าเดิม'}</span>
-      <strong className="shrink-0 font-black tabular-nums text-[#1a3a6e]">
+      <strong className="shrink-0 font-black tabular-nums text-brand-700">
         {line.quantity} <span className="text-xs font-semibold text-slate-500">{item?.unit}</span>
       </strong>
     </div>
@@ -187,8 +187,8 @@ function RequestDetailDialog({ entry, onClose }: { entry: Entry; onClose: () => 
       }
     >
       <div className="space-y-4">
-        <div className="grid gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-4 text-sm sm:grid-cols-2">
-          <p className="font-bold text-[#1a3a6e]">
+        <div className="grid gap-3 rounded-xl border border-slate-200 bg-brand-50/60 p-4 text-sm sm:grid-cols-2">
+          <p className="font-bold text-brand-700">
             {entry.branch_name} <span className="font-semibold text-slate-500">· {formatDateTime(entry.created_at)}</span>
           </p>
           <p className="flex items-center gap-2">
@@ -197,7 +197,7 @@ function RequestDetailDialog({ entry, onClose }: { entry: Entry; onClose: () => 
           <p className="flex items-center gap-2">
             ผู้เบิก: <Avatar name={entry.requester_name} /> <strong>{entry.requester_name}</strong>
           </p>
-          {entry.zone_name && <p>โซน: <strong className="text-blue-700">{entry.zone_name}</strong></p>}
+          {entry.zone_name && <p>โซน: <strong className="text-brand-700">{entry.zone_name}</strong></p>}
           {entry.sender_name && <p className="sm:col-span-2">หัวหน้า / รองหัวหน้าผู้ส่ง: <strong>{entry.sender_name}</strong></p>}
         </div>
 
@@ -205,15 +205,15 @@ function RequestDetailDialog({ entry, onClose }: { entry: Entry; onClose: () => 
           <p className="whitespace-pre-wrap wrap-break-word font-semibold text-slate-600">
             <span className="text-slate-400">หมายเหตุใบเบิก: </span>{entry.note || '—'}
           </p>
-          <p className="whitespace-pre-wrap wrap-break-word font-semibold text-blue-800">
-            <span className="text-blue-400">หมายเหตุผู้ตรวจสอบ: </span>{entry.admin_note || '—'}
+          <p className="whitespace-pre-wrap wrap-break-word font-semibold text-brand-800">
+            <span className="text-brand-400">หมายเหตุผู้ตรวจสอบ: </span>{entry.admin_note || '—'}
           </p>
         </div>
 
-        <h3 className="text-sm font-black text-[#1a3a6e]">
+        <h3 className="text-sm font-black text-brand-700">
           {entry.status === 'approved' ? 'รายการที่อนุมัติ' : 'รายการสินค้า'}
         </h3>
-        <div className="divide-y divide-blue-50 rounded-xl border border-blue-100 px-4">
+        <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 px-4">
           {entry.requisition_details.map((line) => (
             <ItemLine key={line.id} line={line} />
           ))}
@@ -330,9 +330,9 @@ function RequestTable({ rows, onView }: { rows: Entry[]; onView: (entry: Entry) 
     <div className="space-y-5">
       {days.map((day) => (
         <section key={day.key} className={ui.card}>
-          <div className="flex items-center gap-2 border-b border-blue-100 bg-blue-50/70 px-5 py-3">
+          <div className="flex items-center gap-2 border-b border-slate-200 bg-brand-50/70 px-5 py-3">
             <span aria-hidden="true">🗓️</span>
-            <h2 className="text-sm font-black text-[#1a3a6e]">{day.label}</h2>
+            <h2 className="text-sm font-black text-brand-700">{day.label}</h2>
             <span className="ml-auto text-xs font-bold text-slate-500">{day.rows.length} รายการ</span>
           </div>
 
@@ -348,19 +348,19 @@ function RequestTable({ rows, onView }: { rows: Entry[]; onView: (entry: Entry) 
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-blue-50">
+              <tbody className="divide-y divide-slate-100">
                 {day.rows.map((entry) => (
-                  <tr key={entry.id} className="align-middle transition-colors hover:bg-blue-50/40">
+                  <tr key={entry.id} className="align-middle transition-colors hover:bg-brand-50/40">
                     <td className="whitespace-nowrap px-4 py-4 text-xs font-semibold tabular-nums text-slate-500">{formatTime(entry.created_at)} น.</td>
                     <td className="px-4 py-4">
                       <span className="flex items-center gap-2">
                         <Avatar name={entry.requester_name} />
-                        <span className="font-bold text-[#1a3a6e]">{entry.requester_name}</span>
+                        <span className="font-bold text-brand-700">{entry.requester_name}</span>
                       </span>
-                      {entry.sender_name && <p className="mt-1 text-[11px] font-semibold text-blue-800">ผู้ส่ง: {entry.sender_name}</p>}
+                      {entry.sender_name && <p className="mt-1 text-[11px] font-semibold text-brand-800">ผู้ส่ง: {entry.sender_name}</p>}
                     </td>
                     <td className="px-4 py-4">
-                      {entry.zone_name ? <span className="text-xs font-bold text-blue-700">{entry.zone_name}</span> : <span className="text-slate-300">—</span>}
+                      {entry.zone_name ? <span className="text-xs font-bold text-brand-700">{entry.zone_name}</span> : <span className="text-slate-300">—</span>}
                     </td>
                     <td className="max-w-xs px-4 py-4">
                       <p className="font-bold text-slate-700">{entry.requisition_details.length} รายการ</p>
@@ -379,7 +379,7 @@ function RequestTable({ rows, onView }: { rows: Entry[]; onView: (entry: Entry) 
           </div>
 
           {/* Mobile: การ์ดต่อใบเบิก */}
-          <ul className="divide-y divide-blue-50 md:hidden">
+          <ul className="divide-y divide-slate-100 md:hidden">
             {day.rows.map((entry) => (
               <li key={entry.id} className="space-y-3 p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -389,11 +389,11 @@ function RequestTable({ rows, onView }: { rows: Entry[]; onView: (entry: Entry) 
                 <div className="flex items-center gap-2">
                   <Avatar name={entry.requester_name} />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-black text-[#1a3a6e]">{entry.requester_name}</p>
-                    <p className="truncate text-xs font-semibold text-blue-700">
+                    <p className="truncate text-sm font-black text-brand-700">{entry.requester_name}</p>
+                    <p className="truncate text-xs font-semibold text-brand-700">
                       {entry.zone_name && <>โซน: {entry.zone_name}</>}
                       {entry.zone_name && entry.sender_name && ' · '}
-                      {entry.sender_name && <span className="text-blue-800">ผู้ส่ง: {entry.sender_name}</span>}
+                      {entry.sender_name && <span className="text-brand-800">ผู้ส่ง: {entry.sender_name}</span>}
                     </p>
                   </div>
                 </div>
@@ -561,7 +561,7 @@ export default function MyRequestsPage() {
         {error && <Notice tone="error">{error}</Notice>}
 
         <p className="px-1 text-xs font-semibold text-slate-500">
-          พบ <b className="text-[#1a3a6e]">{total.toLocaleString('th-TH')}</b> ใบเบิก{status && ` · ${REQUEST_STATUSES[status].label}`}
+          พบ <b className="text-brand-700">{total.toLocaleString('th-TH')}</b> ใบเบิก{status && ` · ${REQUEST_STATUSES[status].label}`}
         </p>
 
         {loading ? (

@@ -37,7 +37,7 @@ const isReportType = (value: string | null): value is ReportType => reports.some
 type Chip = { text: string; tone: 'neutral' | 'warn' | 'up' | 'down' };
 
 const CHIP_STYLE: Record<Chip['tone'], string> = {
-  neutral: 'border-blue-100 bg-white text-slate-700',
+  neutral: 'border-slate-200 bg-white text-slate-700',
   warn: 'border-amber-200 bg-amber-50 text-amber-800',
   up: 'border-red-200 bg-red-50 text-red-700',
   down: 'border-emerald-200 bg-emerald-50 text-emerald-700',
@@ -84,8 +84,8 @@ function PreviewChips({ type, hasPreview, preview, failed }: { type: ReportType;
   if (!preview) {
     return (
       <span aria-hidden="true" className="mt-3 flex gap-2">
-        <span className="h-6 w-28 animate-pulse rounded-full bg-blue-100/70" />
-        <span className="h-6 w-20 animate-pulse rounded-full bg-blue-100/70" />
+        <span className="h-6 w-28 animate-pulse rounded-full bg-brand-100/70" />
+        <span className="h-6 w-20 animate-pulse rounded-full bg-brand-100/70" />
       </span>
     );
   }
@@ -226,26 +226,26 @@ export default function ReportCenter({ initialType = null }: { initialType?: Rep
             <DashboardKpis preview={preview} failed={failed} onOpen={choose} />
 
             <section className={ui.card}>
-              <div className="border-b border-blue-100 p-4"><h2 className="font-black text-[#1a3a6e]">เลือกรายงาน</h2><p className="mt-0.5 text-xs text-slate-500">กดการ์ดเพื่อเปิดรายงานแบบเต็ม</p></div>
+              <div className="border-b border-slate-200 p-4"><h2 className="font-black text-brand-700">เลือกรายงาน</h2><p className="mt-0.5 text-xs text-slate-500">กดการ์ดเพื่อเปิดรายงานแบบเต็ม</p></div>
               <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
                 {reports.map((report) => (
                   <button
                     key={report.value}
                     onClick={() => choose(report.value)}
-                    className="group flex items-start gap-4 rounded-xl border border-blue-100 border-l-4 border-l-[#1a3a6e] bg-white p-5 text-left transition-all hover:-translate-y-0.5 hover:bg-blue-50/40 hover:shadow-md focus-visible:outline-2 focus-visible:outline-blue-700"
+                    className="group flex items-start gap-4 rounded-xl border border-slate-200 border-l-4 border-l-brand-700 bg-white p-5 text-left transition-all hover:-translate-y-0.5 hover:bg-brand-50/40 hover:shadow-md focus-visible:outline-2 focus-visible:outline-brand-700"
                   >
                     <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-xl">{report.icon}</span>
                     <span className="min-w-0 flex-1">
-                      <span className="block font-black text-[#1a3a6e]">{report.title}</span>
+                      <span className="block font-black text-brand-700">{report.title}</span>
                       <span className="mt-1 block text-sm leading-relaxed text-slate-500">{report.description}</span>
                       <PreviewChips type={report.value} hasPreview={report.hasPreview} preview={preview} failed={failed} />
                     </span>
-                    <span aria-hidden="true" className="self-center font-bold text-blue-500">→</span>
+                    <span aria-hidden="true" className="self-center font-bold text-brand-500">→</span>
                   </button>
                 ))}
               </div>
               {preview && !failed && (
-                <p className="border-t border-blue-50 bg-slate-50/50 px-4 py-3 text-xs text-slate-400">ตัวเลขด้านบนเป็นการสรุปคร่าว ๆ ของเดือนนี้ (เวลาไทย) ดูรายละเอียดครบได้ในแต่ละรายงาน</p>
+                <p className="border-t border-slate-100 bg-slate-50/50 px-4 py-3 text-xs text-slate-400">ตัวเลขด้านบนเป็นการสรุปคร่าว ๆ ของเดือนนี้ (เวลาไทย) ดูรายละเอียดครบได้ในแต่ละรายงาน</p>
               )}
             </section>
           </>
@@ -253,7 +253,7 @@ export default function ReportCenter({ initialType = null }: { initialType?: Rep
           <>
             <nav aria-label="เส้นทางรายงาน" className="flex flex-wrap items-center gap-3 print:hidden">
               <button ref={backButton} onClick={returnToMenu} className={ui.secondary}>← เลือกรายงานอื่น</button>
-              <span className="text-sm font-semibold text-slate-500">รายงาน / <span className="font-black text-[#1a3a6e]">{selected?.title}</span></span>
+              <span className="text-sm font-semibold text-slate-500">รายงาน / <span className="font-black text-brand-700">{selected?.title}</span></span>
             </nav>
 
             <div className={styles.workspace}>

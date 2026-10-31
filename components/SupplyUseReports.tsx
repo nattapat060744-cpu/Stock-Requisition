@@ -169,10 +169,10 @@ function makeItemRows(scoped: Rec[], dept: string, search: string, byZone: boole
 
 /* ───────────────────────── ส่วนแสดงผลย่อย ───────────────────────── */
 function DataTable({ t, rows, offset = 0 }: { t: Tbl; rows: Row[]; offset?: number }) {
-  const th = 'sticky top-0 z-10 whitespace-nowrap bg-[#1a3a6e] px-3 py-2.5 text-center text-xs font-bold text-white';
+  const th = 'sticky top-0 z-10 whitespace-nowrap bg-brand-700 px-3 py-2.5 text-center text-xs font-bold text-white';
   return (
     <GridGuide>
-      <div className="max-h-[70vh] overflow-auto rounded-xl border border-blue-100 print:max-h-none print:overflow-visible">
+      <div className="max-h-[70vh] overflow-auto rounded-xl border border-slate-200 print:max-h-none print:overflow-visible">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
@@ -183,12 +183,12 @@ function DataTable({ t, rows, offset = 0 }: { t: Tbl; rows: Row[]; offset?: numb
                   <TruncText text={c} lines={3} className="leading-snug" />
                 </th>
               ))}
-              <th data-c="s" className={th + ' bg-blue-900'}>รวม</th>
+              <th data-c="s" className={th + ' bg-brand-900'}>รวม</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={r.key} className="border-t border-blue-50 odd:bg-white even:bg-blue-50/30">
+              <tr key={r.key} className="border-t border-slate-100 odd:bg-white even:bg-brand-50/30">
                 <td data-r={i} className="sticky left-0 bg-inherit px-1 py-2 text-center text-xs font-semibold tabular-nums text-slate-400" style={NUM_STYLE}>
                   {offset + i + 1}
                 </td>
@@ -200,14 +200,14 @@ function DataTable({ t, rows, offset = 0 }: { t: Tbl; rows: Row[]; offset?: numb
                     {fmt(v)}
                   </td>
                 ))}
-                <td data-r={i} data-c="s" className="bg-blue-50 px-3 py-2 text-right font-bold tabular-nums text-blue-900">{fmt(r.total)}</td>
+                <td data-r={i} data-c="s" className="bg-brand-50 px-3 py-2 text-right font-bold tabular-nums text-brand-900">{fmt(r.total)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-blue-200 bg-blue-100 font-black text-blue-950">
-              <th data-r="t" className="sticky left-0 bg-blue-100" style={NUM_STYLE} />
-              <th scope="row" data-r="t" className="sticky bg-blue-100 px-3 py-2.5 text-left text-xs" style={{ left: NUM_W }}>รวม</th>
+            <tr className="border-t-2 border-brand-200 bg-brand-100 font-black text-brand-950">
+              <th data-r="t" className="sticky left-0 bg-brand-100" style={NUM_STYLE} />
+              <th scope="row" data-r="t" className="sticky bg-brand-100 px-3 py-2.5 text-left text-xs" style={{ left: NUM_W }}>รวม</th>
               {t.colTotals.map((v, j) => (
                 <td key={j} data-r="t" data-c={j} className="px-3 py-2.5 text-right tabular-nums">{fmt(v)}</td>
               ))}
@@ -223,8 +223,8 @@ function DataTable({ t, rows, offset = 0 }: { t: Tbl; rows: Row[]; offset?: numb
 function ShareList({ title, items, total }: { title: string; items: { label: string; value: number }[]; total: number }) {
   const max = Math.max(1, ...items.map((i) => i.value));
   return (
-    <section className="rounded-xl border border-blue-100 p-4">
-      <h2 className="text-sm font-black text-[#1a3a6e]">{title}</h2>
+    <section className="rounded-xl border border-slate-200 p-4">
+      <h2 className="text-sm font-black text-brand-700">{title}</h2>
       {items.length === 0 ? (
         <p className="mt-3 text-sm text-slate-400">ไม่มีข้อมูล</p>
       ) : (
@@ -237,12 +237,12 @@ function ShareList({ title, items, total }: { title: string; items: { label: str
                   <span className="min-w-0 flex-1 font-semibold text-slate-700"><TruncText text={i.label} /></span>
                 </span>
                 <span className="shrink-0 tabular-nums text-slate-600">
-                  <b className="text-blue-900">{fmt(i.value)}</b>
+                  <b className="text-brand-900">{fmt(i.value)}</b>
                   <span className="ml-2 text-xs text-slate-400">{total ? ((i.value / total) * 100).toFixed(1) : '0.0'}%</span>
                 </span>
               </div>
-              <div className="mt-1 h-2 rounded-full bg-blue-50" aria-hidden="true">
-                <div className="h-2 rounded-full bg-[#1a3a6e]" style={{ width: `${(i.value / max) * 100}%` }} />
+              <div className="mt-1 h-2 rounded-full bg-brand-50" aria-hidden="true">
+                <div className="h-2 rounded-full bg-brand-700" style={{ width: `${(i.value / max) * 100}%` }} />
               </div>
             </li>
           ))}
@@ -253,10 +253,10 @@ function ShareList({ title, items, total }: { title: string; items: { label: str
 }
 
 function ItemsTable({ rows, showZone, total, offset = 0 }: { rows: ItemRow[]; showZone: boolean; total: number; offset?: number }) {
-  const th = 'sticky top-0 z-10 whitespace-nowrap bg-[#1a3a6e] px-3 py-2.5 text-xs font-bold text-white';
+  const th = 'sticky top-0 z-10 whitespace-nowrap bg-brand-700 px-3 py-2.5 text-xs font-bold text-white';
   return (
     <GridGuide>
-      <div className="max-h-[70vh] overflow-auto rounded-xl border border-blue-100 print:max-h-none print:overflow-visible">
+      <div className="max-h-[70vh] overflow-auto rounded-xl border border-slate-200 print:max-h-none print:overflow-visible">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr>
@@ -271,7 +271,7 @@ function ItemsTable({ rows, showZone, total, offset = 0 }: { rows: ItemRow[]; sh
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={r.key} className="border-t border-blue-50 odd:bg-white even:bg-blue-50/30">
+              <tr key={r.key} className="border-t border-slate-100 odd:bg-white even:bg-brand-50/30">
                 <td data-r={i} className="sticky left-0 bg-inherit px-1 py-2 text-center text-xs font-semibold tabular-nums text-slate-400" style={NUM_STYLE}>
                   {offset + i + 1}
                 </td>
@@ -288,12 +288,12 @@ function ItemsTable({ rows, showZone, total, offset = 0 }: { rows: ItemRow[]; sh
                 </td>
                 <td data-r={i} data-c="q" className="px-3 py-2 text-right tabular-nums">{fmt(r.qty)}</td>
                 <td data-r={i} data-c="u" className="px-3 py-2 text-xs text-slate-500">{r.unit}</td>
-                <td data-r={i} data-c="m" className="px-3 py-2 text-right font-bold tabular-nums text-blue-900">{fmt(r.cost)}</td>
+                <td data-r={i} data-c="m" className="px-3 py-2 text-right font-bold tabular-nums text-brand-900">{fmt(r.cost)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-blue-200 bg-blue-100 font-black text-blue-950">
+            <tr className="border-t-2 border-brand-200 bg-brand-100 font-black text-brand-950">
               <th scope="row" data-r="t" colSpan={showZone ? 6 : 5} className="px-3 py-2.5 text-right text-xs">รวมทั้งหมด (ตามตัวกรอง)</th>
               <td data-r="t" data-c="m" className="px-3 py-2.5 text-right tabular-nums">{fmt(total)}</td>
             </tr>
@@ -339,7 +339,7 @@ function DeptBlock({ name, t, hideEmpty, unit }: { name: string; t: Tbl; hideEmp
                     {r.values.map((v, j) => (
                       <td key={j} data-r={i} data-c={j} className={'px-2 py-1.5 text-right tabular-nums ' + (v === 0 ? 'text-slate-300' : 'text-slate-700')}>{fmt(v)}</td>
                     ))}
-                    <td data-r={i} data-c="s" className="bg-sky-100 px-2 py-1.5 text-right font-bold tabular-nums text-blue-900">{fmt(r.total)}</td>
+                    <td data-r={i} data-c="s" className="bg-sky-100 px-2 py-1.5 text-right font-bold tabular-nums text-brand-900">{fmt(r.total)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -531,7 +531,7 @@ export default function SupplyUseReports() {
     const styleHeader = (row: ExcelJS.Row) => {
       row.eachCell((c) => {
         c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A3A6E' } };
+        c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4338CA' } };
         c.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
         c.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
       });
@@ -723,7 +723,7 @@ export default function SupplyUseReports() {
               type="button"
               onClick={refresh}
               disabled={!raw || reloading}
-              className="inline-flex items-center gap-2 rounded-xl border border-blue-100 bg-white px-4 py-2.5 text-sm font-bold text-blue-700 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50/50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-brand-700 shadow-sm transition-all hover:border-brand-300 hover:bg-brand-50/50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <span>🔄</span><span>{reloading ? 'กำลังโหลด...' : 'รีเฟรช'}</span>
             </button>
@@ -752,14 +752,14 @@ export default function SupplyUseReports() {
             {view !== 'items' && (
               <div role="group" aria-label="แสดงตัวเลขเป็น" className="text-xs font-bold text-slate-500">
                 แสดงตัวเลขเป็น
-                <div className="mt-1 flex overflow-hidden rounded-xl border border-blue-100">
+                <div className="mt-1 flex overflow-hidden rounded-xl border border-slate-200">
                   {([['cost', 'ยอดเงิน (บาท)'], ['qty', 'จำนวนชิ้น']] as const).map(([value, label]) => (
                     <button
                       key={value}
                       type="button"
                       aria-pressed={measure === value}
                       onClick={() => setMeasure(value)}
-                      className={'h-10 px-4 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-blue-700 ' + (measure === value ? 'bg-[#1a3a6e] text-white' : 'bg-white text-slate-600 hover:bg-blue-50')}
+                      className={'h-10 px-4 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-700 ' + (measure === value ? 'bg-brand-700 text-white' : 'bg-white text-slate-600 hover:bg-brand-50')}
                     >
                       {label}
                     </button>
@@ -791,7 +791,7 @@ export default function SupplyUseReports() {
                   <input type="search" value={search} placeholder="พิมพ์ชื่อสินค้า" onChange={(e) => { setSearch(e.target.value); setPage(1); }} className={SELECT + ' mt-1 block w-52'} />
                 </label>
                 <label className="flex h-10 items-center gap-2 text-sm font-semibold text-slate-600">
-                  <input type="checkbox" checked={byZone} onChange={(e) => { setByZone(e.target.checked); setPage(1); }} className="h-4 w-4 accent-[#1a3a6e]" />
+                  <input type="checkbox" checked={byZone} onChange={(e) => { setByZone(e.target.checked); setPage(1); }} className="h-4 w-4 accent-brand-700" />
                   แยกตามโซน
                 </label>
               </>
@@ -807,7 +807,7 @@ export default function SupplyUseReports() {
             )}
             {view !== 'overview' && view !== 'items' && (
               <label className="flex h-10 items-center gap-2 text-sm font-semibold text-slate-600">
-                <input type="checkbox" checked={hideEmpty} onChange={(e) => { setHideEmpty(e.target.checked); setPage(1); }} className="h-4 w-4 accent-[#1a3a6e]" />
+                <input type="checkbox" checked={hideEmpty} onChange={(e) => { setHideEmpty(e.target.checked); setPage(1); }} className="h-4 w-4 accent-brand-700" />
                 ซ่อนแถวที่ไม่มียอด
               </label>
             )}
@@ -840,15 +840,15 @@ export default function SupplyUseReports() {
               ['แผนกที่เบิกสูงสุด', topDept ? topDept[0] : '-', topDept ? fmt(topDept[1]) + ' ' + unit : ''],
               ['สินค้าที่เบิกสูงสุด', topItem ? topItem[0] : '-', topItem ? fmt(topItem[1]) + ' ' + unit : ''],
             ].map(([label, value, sub]) => (
-              <div key={label} className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+              <div key={label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-xs font-bold text-slate-500">{label}</p>
-                <p className="mt-1 wrap-break-word text-lg font-black leading-tight text-[#1a3a6e] tabular-nums">{value}</p>
+                <p className="mt-1 wrap-break-word text-lg font-black leading-tight text-brand-700 tabular-nums">{value}</p>
                 {sub && <p className="mt-0.5 text-xs font-semibold text-slate-400 tabular-nums">{sub}</p>}
               </div>
             ))}
           </div>
 
-          <section className="space-y-4 rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div role="group" aria-label="มุมมองรายงาน" className="flex flex-wrap gap-2 print:hidden">
               {VIEWS.map((v) => (
                 <button
@@ -856,7 +856,7 @@ export default function SupplyUseReports() {
                   type="button"
                   aria-pressed={view === v.value}
                   onClick={() => changeView(v.value)}
-                  className={'rounded-xl border px-4 py-2 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-blue-700 ' + (view === v.value ? 'border-[#1a3a6e] bg-[#1a3a6e] text-white' : 'border-blue-100 bg-blue-50/40 text-slate-600 hover:bg-blue-100')}
+                  className={'rounded-xl border px-4 py-2 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-brand-700 ' + (view === v.value ? 'border-brand-700 bg-brand-700 text-white' : 'border-slate-200 bg-brand-50/40 text-slate-600 hover:bg-brand-100')}
                 >
                   {v.label}
                 </button>

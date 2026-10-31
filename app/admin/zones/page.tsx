@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import DepartmentCodeEditor from '@/components/DepartmentCodeEditor';
 import DepartmentCodeList from '@/components/DepartmentCodeList';
 import { requestError } from '@/lib/requisitionRules';
-import { ui, PageHero, Notice, StatCard, Field, EmptyState, Skeleton, Pagination, Modal } from '@/components/AdminUI';
+import { ui, PageHero, Notice, StatCard, Field, EmptyState, Skeleton, Pagination, Modal, SearchBox } from '@/components/AdminUI';
 
 interface Branch {
   id: string;
@@ -67,6 +67,7 @@ export default function AdminZonesPage() {
 
   // filter
   const [filterBranch, setFilterBranch] = useState('all');
+  const [branchQuery, setBranchQuery] = useState('');
 
   // pagination
   const ZONES_PER_PAGE = 20;
@@ -204,6 +205,8 @@ export default function AdminZonesPage() {
   };
 
   const filteredZones = filterBranch === 'all' ? zones : zones.filter((z) => z.branch_id === filterBranch);
+  const normalizedBranchQuery = branchQuery.trim().toLocaleLowerCase();
+  const visibleBranches = branches.filter((branch) => branch.name.toLocaleLowerCase().includes(normalizedBranchQuery));
 
   const totalPages = Math.max(1, Math.ceil(filteredZones.length / ZONES_PER_PAGE));
   const visiblePage = Math.min(currentPage, totalPages);
@@ -235,24 +238,40 @@ export default function AdminZonesPage() {
         </div>
 
         <section className={ui.card}>
-          <div className="border-b border-blue-100 p-4">
-            <h2 className="font-black text-[#1a3a6e]">แผนกทั้งหมด</h2>
-            <p className="mt-0.5 text-xs text-slate-500">ดูโซนของแต่ละแผนก หรือปิดใช้งานแผนกที่ไม่ใช้แล้ว (ประวัติและรายงานย้อนหลังยังอยู่)</p>
+          <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-black text-brand-800">แผนกทั้งหมด</h2>
+                <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-700">{branches.length} แผนก</span>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">เลือกดูโซนหรือจัดการแผนก · ประวัติและรายงานย้อนหลังยังอยู่เมื่อปิดใช้งาน</p>
+            </div>
+            <SearchBox value={branchQuery} onChange={setBranchQuery} placeholder="ค้นหาชื่อแผนก" label="ค้นหาแผนก" />
           </div>
-          {loading ? <Skeleton rows={3} /> : branches.length === 0 ? <EmptyState icon="🏬" title="ยังไม่มีแผนก" hint="กด “+ เพิ่มแผนกใหม่” ก่อนสร้างโซน" /> : (
-            <div className="grid max-h-80 gap-3 overflow-y-auto p-4 sm:grid-cols-2 lg:grid-cols-3">
-              {branches.map((branch) => (
-                <div key={branch.id} className={'flex flex-col justify-between gap-3 rounded-xl border bg-white p-4 transition-colors hover:bg-blue-50/40 ' + (filterBranch === branch.id ? 'border-blue-300 ring-2 ring-[#1a3a6e]/40' : 'border-blue-100')}>
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-black text-blue-800">{branch.name.trim().slice(0, 1)}</span>
-                    <div className="min-w-0"><p className="wrap-break-word text-sm font-black text-[#1a3a6e]">{branch.name}</p><p className="text-xs text-slate-500">{zones.filter((zone) => zone.branch_id === branch.id).length} โซน</p></div>
-                  </div>
-                  <div className="flex flex-wrap justify-end gap-2">
-                    <button className={ui.rowBtn} onClick={() => { handleFilterChange(branch.id); document.getElementById('zone-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>ดูโซน</button>
-                    <button className={ui.rowBtnDanger} disabled={savingBranch || saving} onClick={() => void deactivateBranch(branch)}>ปิดใช้งาน</button>
-                  </div>
-                </div>
-              ))}
+          {loading ? <Skeleton rows={3} /> : branches.length === 0 ? <EmptyState icon="🏬" title="ยังไม่มีแผนก" hint="กด “+ เพิ่มแผนกใหม่” ก่อนสร้างโซน" /> : visibleBranches.length === 0 ? (
+            <EmptyState icon="⌕" title="ไม่พบแผนกที่ค้นหา" hint="ลองตรวจสอบคำค้นหาหรือค้นหาด้วยชื่ออื่น" />
+          ) : (
+            <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3">
+              {visibleBranches.map((branch) => {
+                const zoneCount = zones.filter((zone) => zone.branch_id === branch.id).length;
+                const selected = filterBranch === branch.id;
+                return (
+                  <article key={branch.id} className={'flex min-w-0 flex-col justify-between gap-2 rounded-xl border p-3 transition-all hover:-translate-y-0.5 hover:shadow-soft ' + (selected ? 'border-brand-300 bg-brand-50/70 ring-1 ring-brand-200' : 'border-slate-200 bg-white hover:border-brand-200')}>
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-100 text-sm font-black text-brand-800">{branch.name.trim().slice(0, 1)}</span>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="wrap-break-word text-sm font-black text-brand-800">{branch.name}</h3>
+                        <p className="mt-0.5 text-xs text-slate-500">มี {zoneCount} โซน</p>
+                      </div>
+                      {selected && <span className="shrink-0 rounded-full bg-brand-700 px-2 py-1 text-[11px] font-bold text-white">กำลังดู</span>}
+                    </div>
+                    <div className="flex flex-wrap justify-end gap-1.5 border-t border-slate-100 pt-2">
+                      <button type="button" aria-pressed={selected} className={ui.rowBtn + ' px-3 py-1.5'} onClick={() => { handleFilterChange(branch.id); document.getElementById('zone-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>ดูโซน</button>
+                      <button type="button" className={ui.rowBtnDanger + ' px-3 py-1.5'} disabled={savingBranch || saving} onClick={() => void deactivateBranch(branch)}>ปิดใช้งาน</button>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>
@@ -272,8 +291,8 @@ export default function AdminZonesPage() {
                   <Field label="รหัสเข้าใช้งานของแผนก (12–100 ตัวอักษร) *"><input required autoComplete="new-password" type={showBranchCode ? 'text' : 'password'} minLength={12} maxLength={100} value={branchCode} onChange={(event) => setBranchCode(event.target.value)} className={ui.input} /></Field>
                   <Field label="ยืนยันรหัสของแผนก *"><input required autoComplete="new-password" type={showBranchCode ? 'text' : 'password'} minLength={12} maxLength={100} value={branchCodeConfirm} onChange={(event) => setBranchCodeConfirm(event.target.value)} className={ui.input} /></Field>
                 </div>
-                <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={showBranchCode} onChange={(event) => setShowBranchCode(event.target.checked)} className="h-4 w-4 accent-blue-700" />แสดงรหัสแผนก</label>
-                <div className="rounded-xl bg-blue-50 p-3 text-sm text-blue-900">รหัสสต็อก/แอดมินกลางใช้ยืนยันการตั้งรหัส · ถ้ารหัสซ้ำกับแผนกอื่น ระบบจะไม่สร้างแผนกให้</div>
+                <label className="flex w-fit cursor-pointer items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={showBranchCode} onChange={(event) => setShowBranchCode(event.target.checked)} className="h-4 w-4 accent-brand-700" />แสดงรหัสแผนก</label>
+                <div className="rounded-xl bg-brand-50 p-3 text-sm text-brand-900">รหัสสต็อก/แอดมินกลางใช้ยืนยันการตั้งรหัส · ถ้ารหัสซ้ำกับแผนกอื่น ระบบจะไม่สร้างแผนกให้</div>
                 <button type="submit" className="hidden" aria-hidden="true" tabIndex={-1} />
               </fieldset>
             </form>
@@ -282,7 +301,10 @@ export default function AdminZonesPage() {
 
         {/* ── เพิ่มโซน ── */}
         <section className={ui.card + ' p-4 sm:p-5'}>
-          <h2 className="mb-4 font-black text-[#1a3a6e]">➕ เพิ่มโซนใหม่</h2>
+          <div className="mb-4">
+            <h2 className="font-black text-brand-800">เพิ่มโซนใหม่</h2>
+            <p className="mt-1 text-xs text-slate-500">เลือกแผนกและระบุชื่อโซนที่ต้องการเพิ่ม</p>
+          </div>
           <fieldset disabled={saving} className="grid min-w-0 gap-4 sm:grid-cols-[220px_1fr_auto] sm:items-end">
             <Field label="แผนก *">
               <select value={newBranchId} onChange={(e) => setNewBranchId(e.target.value)} className={ui.input + ' cursor-pointer'}>
@@ -299,18 +321,22 @@ export default function AdminZonesPage() {
 
         {/* ── รายการโซน ── */}
         <section id="zone-list" className={ui.card}>
-          <div className="flex flex-wrap items-center gap-3 border-b border-blue-100 p-4">
-            <select aria-label="กรองตามแผนก" value={filterBranch} onChange={(e) => handleFilterChange(e.target.value)} className={ui.input + ' cursor-pointer sm:max-w-56'}>
+          <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center">
+            <div className="min-w-0">
+              <h2 className="font-black text-brand-800">รายการโซน</h2>
+              <p className="mt-1 text-xs text-slate-500">ลากแถวเพื่อเปลี่ยนลำดับ · ระบบบันทึกให้อัตโนมัติ</p>
+            </div>
+            <select aria-label="กรองตามแผนก" value={filterBranch} onChange={(e) => handleFilterChange(e.target.value)} className={ui.input + ' cursor-pointer sm:ml-auto sm:max-w-56'}>
               <option value="all">ทุกแผนก</option>
               {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
-            <p className="ml-auto text-xs font-semibold text-slate-500">แสดง <b className="text-[#1a3a6e]">{filteredZones.length}</b> จาก {zones.length} โซน{filterBranch !== 'all' && <button type="button" className="ml-3 font-black text-blue-700 hover:underline" onClick={() => handleFilterChange('all')}>ล้างตัวกรอง</button>}</p>
+            <p className="text-xs font-semibold text-slate-500 sm:text-right">แสดง <b className="text-brand-700">{filteredZones.length}</b> จาก {zones.length} โซน{filterBranch !== 'all' && <button type="button" className="ml-3 font-black text-brand-700 hover:underline" onClick={() => handleFilterChange('all')}>ล้างตัวกรอง</button>}</p>
           </div>
 
           {loading ? <Skeleton rows={5} /> : filteredZones.length === 0 ? (
             <EmptyState icon="🗂️" title="ยังไม่มีโซน" hint="เพิ่มโซนจากฟอร์มด้านบนได้เลย" />
           ) : (
-            <ul className="divide-y divide-blue-50">
+            <ul className="divide-y divide-slate-100">
               {pagedZones.map((zone, pageIdx) => {
                 const absoluteIdx = (visiblePage - 1) * ZONES_PER_PAGE + pageIdx;
                 const editing = editId === zone.id;
@@ -321,7 +347,7 @@ export default function AdminZonesPage() {
                     onDragStart={(e) => handleDragStart(e, absoluteIdx)}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, absoluteIdx)}
-                    className={'flex items-center gap-4 px-4 py-3.5 transition-colors ' + (editing ? 'bg-blue-50/40' : 'cursor-grab hover:bg-blue-50/40 active:cursor-grabbing')}
+                    className={'flex items-center gap-4 px-4 py-3.5 transition-colors ' + (editing ? 'bg-brand-50/40' : 'cursor-grab hover:bg-brand-50/40 active:cursor-grabbing')}
                   >
                     <span aria-hidden="true" title="ลากเพื่อเปลี่ยนลำดับ" className="shrink-0 select-none text-slate-300">⠿</span>
                     <span className="w-8 shrink-0 text-center text-xs font-semibold tabular-nums text-slate-400">{absoluteIdx + 1}</span>
@@ -332,7 +358,7 @@ export default function AdminZonesPage() {
                         autoFocus className={ui.input + ' flex-1'} />
                     ) : (
                       <div className="min-w-0 flex-1">
-                        <p className="font-black text-[#1a3a6e]">{zone.name}</p>
+                        <p className="font-black text-brand-700">{zone.name}</p>
                         <p className="mt-0.5 text-xs text-slate-500">แผนก {zone.branch?.name || '—'}</p>
                       </div>
                     )}

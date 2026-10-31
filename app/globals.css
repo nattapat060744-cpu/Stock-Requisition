@@ -1,25 +1,149 @@
 @import "tailwindcss";
 
+/*
+  ระบบเบิกของ — ชุดสีจากโลโก้: น้ำเงินสดและทอง
+  แก้สีทั้งระบบได้ที่นี่ที่เดียว:
+    brand  = สีหลัก (ปุ่ม เมนู หัวข้อ)           → น้ำเงิน
+    accent = สีเน้น (ตัวนำสายตา ป้ายแจ้งเตือน)     → ทอง
+    canvas = สีพื้นหลังหน้าเว็บ (ขาวอมฟ้า)
+  สีสถานะ (เขียว=สำเร็จ, เหลือง=รอ, แดง=ผิดพลาด) ใช้ของ Tailwind ตามเดิม
+*/
+@theme {
+  --color-brand-50: #eff3ff;
+  --color-brand-100: #dfe7ff;
+  --color-brand-200: #c3d1ff;
+  --color-brand-300: #9ab1ff;
+  --color-brand-400: #6d8bff;
+  --color-brand-500: #496cf5;
+  --color-brand-600: #3154e8;
+  --color-brand-700: #2445d0;
+  --color-brand-800: #203bad;
+  --color-brand-900: #1d3387;
+  --color-brand-950: #17265f;
+
+  --color-accent-50: #fffbed;
+  --color-accent-100: #fff3c9;
+  --color-accent-200: #ffe58a;
+  --color-accent-300: #f6d14f;
+  --color-accent-400: #e8ba16;
+  --color-accent-500: #d4a600;
+  --color-accent-600: #b88700;
+  --color-accent-700: #946700;
+  --color-accent-950: #493300;
+
+  --color-canvas: #f7f8fc;
+
+  /* แอนิเมชันที่ใช้ซ้ำทั้งระบบ */
+  --animate-rise: rise .5s cubic-bezier(.2, .7, .2, 1) both;
+  --animate-pop: pop .32s cubic-bezier(.34, 1.56, .64, 1) both;
+  --animate-fade: fade .3s ease-out both;
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-float-slow: float 11s ease-in-out infinite reverse;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-shake: shake .4s cubic-bezier(.36, .07, .19, .97) both;
+  --animate-float-up: float-up .9s ease-out both;
+  --animate-pulse: soft-pulse 1.8s ease-in-out infinite;
+  --animate-ping-soft: ping-soft 2s cubic-bezier(0, 0, .2, 1) infinite;
+  --animate-grow: grow .8s cubic-bezier(.2, .7, .2, 1) both;
+  --animate-aurora: aurora 14s ease-in-out infinite alternate;
+
+  --shadow-soft: 0 1px 2px rgb(23 38 95 / .05), 0 10px 28px -14px rgb(49 84 232 / .14);
+  --shadow-lift: 0 2px 4px rgb(23 38 95 / .06), 0 18px 40px -16px rgb(49 84 232 / .22);
+  --shadow-glow: 0 8px 24px -6px rgb(49 84 232 / .32);
+}
+
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes pop { from { opacity: 0; transform: scale(.92) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes float { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(14px, -18px, 0); } }
+@keyframes shimmer { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+@keyframes shake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(3px); } 30%, 50%, 70% { transform: translateX(-5px); } 40%, 60% { transform: translateX(5px); } }
+@keyframes float-up { 0% { opacity: 0; transform: translateY(6px) scale(.8); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-34px) scale(1.15); } }
+@keyframes soft-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+@keyframes ping-soft { 0% { transform: scale(1); opacity: .55; } 75%, 100% { transform: scale(2.1); opacity: 0; } }
+@keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes aurora { 0% { background-position: 0% 50%; } 100% { background-position: 100% 50%; } }
+
 :root {
-  --background: #f0f4f8;
-  --foreground: #1a2744;
-  --primary: #1a3a6e;
-  --primary-dark: #112654;
-  --primary-light: #2451a0;
-  --accent-gold: #c8a230;
-  --accent-gold-light: #e8c35a;
-  --accent-gold-dark: #a07820;
+  --background: #f7f8fc;
+  --foreground: #1b2435;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-thai), var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
+html { scroll-behavior: smooth; }
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--background);
+    color: var(--foreground);
+  font-family: var(--font-thai), var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+
+::selection { background: var(--color-brand-200); color: var(--color-brand-950); }
+
+:focus-visible { outline: 2px solid var(--color-brand-500); outline-offset: 2px; border-radius: 6px; }
+
+/* แถบเลื่อนให้เข้าธีม */
+* { scrollbar-width: thin; scrollbar-color: var(--color-brand-200) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--color-brand-200); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-brand-300); background-clip: padding-box; border: 2px solid transparent; }
+
+/* ปุ่มทุกปุ่มมีแรงกด + เปลี่ยนสีนุ่มนวล */
+@layer base {
+  button, [role="button"], a { -webkit-tap-highlight-color: transparent; }
+  button:not(:disabled) { transition: transform .15s cubic-bezier(.2, .7, .2, 1), background-color .2s, border-color .2s, color .2s, box-shadow .25s, opacity .2s; cursor: pointer; }
+  button:not(:disabled):active { transform: scale(.97); }
+  input[type="checkbox"], input[type="radio"] { cursor: pointer; }
+}
+
+@layer components {
+/* เนื้อหาในหน้าไหลขึ้นทีละส่วน (ใส่ class "stagger" ที่ตัวห่อ) */
+.stagger > * { animation: rise .55s cubic-bezier(.2, .7, .2, 1) both; }
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 70ms; }
+.stagger > *:nth-child(3) { animation-delay: 140ms; }
+.stagger > *:nth-child(4) { animation-delay: 210ms; }
+.stagger > *:nth-child(5) { animation-delay: 280ms; }
+.stagger > *:nth-child(6) { animation-delay: 350ms; }
+.stagger > *:nth-child(n + 7) { animation-delay: 420ms; }
+
+/* กริด/ลิสต์ที่อยากให้การ์ดทยอยขึ้น */
+.stagger-grid > * { animation: rise .5s cubic-bezier(.2, .7, .2, 1) both; }
+.stagger-grid > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-grid > *:nth-child(2) { animation-delay: 40ms; }
+.stagger-grid > *:nth-child(3) { animation-delay: 80ms; }
+.stagger-grid > *:nth-child(4) { animation-delay: 120ms; }
+.stagger-grid > *:nth-child(5) { animation-delay: 160ms; }
+.stagger-grid > *:nth-child(6) { animation-delay: 200ms; }
+.stagger-grid > *:nth-child(7) { animation-delay: 240ms; }
+.stagger-grid > *:nth-child(8) { animation-delay: 280ms; }
+.stagger-grid > *:nth-child(n + 9) { animation-delay: 320ms; }
+
+}
+
+/* หน้าต่างป๊อปอัป (<dialog>) — เด้งขึ้น + พื้นหลังเบลอ */
+dialog[open] { animation: pop .3s cubic-bezier(.34, 1.4, .64, 1) both; }
+dialog::backdrop { background: rgb(23 37 84 / .55); backdrop-filter: blur(6px); animation: fade .25s ease-out both; }
+
+@layer components {
+}
+
+@media print {
+  body { background: #fff !important; }
+  .stagger > *, .stagger-grid > * { animation: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
+@keyframes shrink { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@keyframes wiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
+@keyframes bar-in { from { transform: scaleX(0); } to { transform: scaleX(1); } }

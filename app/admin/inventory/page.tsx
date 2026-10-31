@@ -159,7 +159,7 @@ export default function AdminInventoryPage() {
         'รายการสินค้าในคลัง',
         ['รหัสสินค้า', 'ชื่อสินค้า', 'หน่วย', 'มูลค่าต่อหน่วย', 'คงเหลือ'],
         filteredItems.map((item) => [item.product_code || '', item.name, item.unit, item.price, item.stock_quantity ?? 'ยังไม่ระบุ']),
-        'Sampeng-inventory.xlsx',
+        'Requisition-inventory.xlsx',
         'คำค้น: ' + (searchTerm || 'ทั้งหมด')
           + (stockFilter !== 'all' ? ' · สต็อก: ' + ({ in: 'มีสินค้า', low: 'ใกล้หมด', out: 'หมดสต็อก', unset: 'ยังไม่ระบุ' }[stockFilter]) : '')
           + (statusFilter !== 'all' ? ' · สถานะ: ' + (statusFilter === 'active' ? 'เปิดใช้งาน' : 'ปิดใช้งาน') : '')
@@ -239,7 +239,7 @@ export default function AdminInventoryPage() {
         </section>
 
         <section className={ui.card}>
-          <div className="flex flex-wrap items-center gap-3 border-b border-blue-100 p-4">
+          <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 p-4">
             <SearchBox label="ค้นหาชื่อสินค้าหรือรหัส" placeholder="ค้นหาชื่อสินค้า / รหัส..." value={searchTerm} onChange={setSearchTerm} />
             <select aria-label="กรองตามสถานะ" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusFilter)} className={ui.input + ' sm:max-w-44'}>
               <option value="all">ทุกสถานะ</option>
@@ -249,8 +249,8 @@ export default function AdminInventoryPage() {
             <select aria-label="เรียงลำดับ" value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)} className={ui.input + ' sm:max-w-52'}>
               {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>เรียง: {o.label}</option>)}
             </select>
-            <p className="ml-auto text-xs font-semibold text-slate-500">แสดง <b className="text-[#1a3a6e]">{filteredItems.length.toLocaleString('th-TH')}</b> จาก {items.length.toLocaleString('th-TH')} รายการ
-              {(hasActiveFilter || sortKey !== 'name-asc') && <button type="button" className="ml-3 font-black text-blue-700 hover:underline" onClick={resetFilters}>ล้างตัวกรอง</button>}</p>
+            <p className="ml-auto text-xs font-semibold text-slate-500">แสดง <b className="text-brand-700">{filteredItems.length.toLocaleString('th-TH')}</b> จาก {items.length.toLocaleString('th-TH')} รายการ
+              {(hasActiveFilter || sortKey !== 'name-asc') && <button type="button" className="ml-3 font-black text-brand-700 hover:underline" onClick={resetFilters}>ล้างตัวกรอง</button>}</p>
           </div>
 
           {loading ? <Skeleton rows={6} /> : (
@@ -269,7 +269,7 @@ export default function AdminInventoryPage() {
                     <th className="px-4 py-3.5 text-right"><span className="sr-only">จัดการ</span></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-blue-50">
+                <tbody className="divide-y divide-slate-100">
                   {currentItems.length === 0 ? (
                     <tr><td colSpan={9}>
                       <EmptyState icon="📦" title={searchTerm ? `ไม่พบรายการ “${searchTerm}”` : hasActiveFilter ? 'ไม่พบสินค้าตามตัวกรองที่เลือก' : 'ยังไม่มีสินค้าในระบบ'}
@@ -278,28 +278,28 @@ export default function AdminInventoryPage() {
                   ) : currentItems.map((item, idx) => {
                     const state = getStockState(item);
                     return (
-                      <tr key={item.id} className={'transition-colors hover:bg-blue-50/40 ' + (state === 'out' ? 'bg-red-50/40' : '')}>
+                      <tr key={item.id} className={'transition-colors hover:bg-brand-50/40 ' + (state === 'out' ? 'bg-red-50/40' : '')}>
                         <td className="px-4 py-4 text-center text-xs font-semibold tabular-nums text-slate-400">{indexOfFirstItem + idx + 1}</td>
                         <td className="px-4 py-3">
                           {item.image_url ? (
-                            <button type="button" aria-label={'ดูรูป ' + item.name} onClick={() => setSelectedImage(item.image_url)} className="block h-12 w-12 cursor-zoom-in overflow-hidden rounded-xl border border-blue-100 hover:ring-2 hover:ring-blue-300">
+                            <button type="button" aria-label={'ดูรูป ' + item.name} onClick={() => setSelectedImage(item.image_url)} className="block h-12 w-12 cursor-zoom-in overflow-hidden rounded-xl border border-slate-200 hover:ring-2 hover:ring-brand-300">
                               <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
                             </button>
                           ) : (
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-dashed border-blue-100 bg-blue-50 text-[10px] font-bold text-blue-400">ไม่มีรูป</div>
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-brand-50 text-[10px] font-bold text-brand-400">ไม่มีรูป</div>
                           )}
                         </td>
                         <td className="px-4 py-4 font-mono text-xs font-semibold text-slate-500">{item.product_code || '—'}</td>
-                        <td className="px-4 py-4 font-black text-[#1a3a6e]">{item.name}</td>
+                        <td className="px-4 py-4 font-black text-brand-700">{item.name}</td>
                         <td className="px-4 py-4 text-center">
                           {state === 'unset' ? <span className="text-xs text-slate-400">ยังไม่ระบุ</span> : (
                             <div className="flex flex-col items-center gap-1">
-                              <span className="font-black tabular-nums text-[#1a3a6e]">{item.stock_quantity!.toLocaleString('th-TH')}</span>
+                              <span className="font-black tabular-nums text-brand-700">{item.stock_quantity!.toLocaleString('th-TH')}</span>
                               {state !== 'in' && <span className={'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ' + stockBadge[state].cls}><span aria-hidden="true" className={'h-1.5 w-1.5 rounded-full ' + stockBadge[state].dot} />{stockBadge[state].text}</span>}
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-4 text-center"><span className="rounded-lg bg-blue-50 px-3 py-1 text-xs font-bold text-blue-900">{item.unit}</span></td>
+                        <td className="px-4 py-4 text-center"><span className="rounded-lg bg-brand-50 px-3 py-1 text-xs font-bold text-brand-900">{item.unit}</span></td>
                         <td className="px-4 py-4 text-right font-bold tabular-nums text-slate-700">{(item.price ?? 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} <span className="text-xs font-semibold text-slate-400">฿</span></td>
                         <td className="px-4 py-4 text-center">
                           <span className={'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ' + (item.is_active ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-500')}>
@@ -333,14 +333,14 @@ export default function AdminInventoryPage() {
               <button disabled={uploading} className={ui.button} onClick={() => void handleSave()}>บันทึกข้อมูล</button>
             </>}>
             <div className="grid items-start gap-6 md:grid-cols-[240px_minmax(0,1fr)]">
-              <div className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
-                <p className="text-xs font-bold text-blue-800">รูปภาพสินค้า</p>
+              <div className="space-y-3 rounded-xl border border-slate-200 bg-brand-50/40 p-4">
+                <p className="text-xs font-bold text-brand-800">รูปภาพสินค้า</p>
                 <div className="flex flex-wrap items-center gap-3">
                   <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept="image/*" />
                   <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading} className={ui.secondary}>{uploading ? '⏳ กำลังอัปโหลด...' : '📷 เลือกรูปภาพ'}</button>
                   {formData.image_url && <button type="button" onClick={() => setFormData((prev) => ({ ...prev, image_url: '' }))} className="text-xs font-bold text-red-600 hover:underline">ลบรูป</button>}
                 </div>
-                {formData.image_url && <img src={formData.image_url} alt="ตัวอย่างรูป" className="h-44 w-full rounded-xl border border-blue-100 bg-white object-contain p-3 md:h-56" />}
+                {formData.image_url && <img src={formData.image_url} alt="ตัวอย่างรูป" className="h-44 w-full rounded-xl border border-slate-200 bg-white object-contain p-3 md:h-56" />}
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="รหัสสินค้า"><input className={ui.input} placeholder="เช่น PRD-001" value={formData.product_code || ''} onChange={(e) => setFormData({ ...formData, product_code: e.target.value })} /></Field>
@@ -354,8 +354,8 @@ export default function AdminInventoryPage() {
                   </Field>
                   <p className="text-xs text-slate-500">จำนวนตามหน่วยสินค้า เช่น 10 ชิ้น หรือ 5 กล่อง</p>
                 </div>
-                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/40 p-3 hover:bg-blue-50 sm:col-span-2">
-                  <input type="checkbox" checked={formData.is_active} onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })} className="h-5 w-5 accent-blue-700" />
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-brand-50/40 p-3 hover:bg-brand-50 sm:col-span-2">
+                  <input type="checkbox" checked={formData.is_active} onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })} className="h-5 w-5 accent-brand-700" />
                   <span><span className="text-sm font-bold text-slate-700">เปิดใช้งานรายการนี้</span><span className="block text-xs text-slate-500">สินค้าจะแสดงในหน้าเบิกของแผนก</span></span>
                 </label>
               </div>

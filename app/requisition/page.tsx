@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useDepartment } from '@/components/DepartmentAccess';
 import { requestError, validRequestLines } from '@/lib/requisitionRules';
 import { supabase } from '@/lib/supabase';
+import { celebrate } from '@/components/Toaster';
 import { ui, PageHero, Notice, Field, SearchBox, EmptyState, Modal } from '@/components/AdminUI';
 
 interface Item {
@@ -40,6 +41,7 @@ interface CartFormContentProps {
   cart: CartItem[];
   updateQuantity: (id: string, amount: number) => void;
   removeFromCart: (id: string) => void;
+  clearCart: () => void;
   loading: boolean;
   cartBounce: boolean;
 }
@@ -57,6 +59,7 @@ const CartFormContent = ({
   cart,
   updateQuantity,
   removeFromCart,
+  clearCart,
   loading,
   cartBounce,
 }: CartFormContentProps) => (
@@ -64,8 +67,8 @@ const CartFormContent = ({
     <fieldset disabled={loading} className="m-0 w-full min-w-0 flex-1 space-y-3 overflow-y-auto border-0 p-0 pr-1">
       {/* แผนกอ้างอิงจากผู้ใช้ที่เข้าใช้งาน ไม่ใช่ช่องเลือก */}
       <div className="space-y-1.5">
-        <p className="text-xs font-bold text-blue-800">แผนกที่ขอเบิก</p>
-        <p className="w-full rounded-xl border border-blue-100 bg-blue-50 px-3 py-2.5 text-sm font-black text-[#1a3a6e]">{branchName}</p>
+        <p className="text-xs font-bold text-brand-800">แผนกที่ขอเบิก</p>
+        <p className="w-full rounded-xl border border-brand-200 bg-brand-50 to-white px-3 py-2.5 text-sm font-black text-brand-700">🏢 {branchName}</p>
       </div>
 
       {/* โซน — โชว์เฉพาะแผนกที่มีโซน */}
@@ -92,46 +95,46 @@ const CartFormContent = ({
         <textarea maxLength={2000} rows={3} value={note} onChange={e => setNote(e.target.value)} placeholder="เช่น ใช้สำหรับงานใด หรือรายละเอียดเพิ่มเติม" className={ui.input} />
       </Field>
 
-      <div className="flex items-center justify-between border-t border-blue-100 px-1 pt-3">
-        <span className="text-sm font-black text-[#1a3a6e]">รายการที่เลือก <span className="font-semibold text-slate-500">({cart.length} รายการ)</span></span>
-        <span className={'rounded-full border px-3 py-1 text-xs font-black tabular-nums transition-all duration-300 ' + (cartBounce ? 'scale-110 border-red-400 bg-red-600 text-white shadow-md' : 'border-blue-200 bg-blue-50 text-blue-900')}>
+      <div className="flex items-center justify-between border-t border-slate-200 px-1 pt-3">
+        <span className="text-sm font-black text-brand-700">รายการที่เลือก <span className="font-semibold text-slate-500">({cart.length} รายการ)</span>{cart.length > 1 && <button type="button" onClick={() => { if (confirm('ล้างรายการทั้งหมดในตะกร้า?')) clearCart(); }} className="ml-2 text-[11px] font-bold text-slate-400 underline-offset-2 hover:text-red-600 hover:underline">ล้างทั้งหมด</button>}</span>
+        <span className={'rounded-full border px-3 py-1 text-xs font-black tabular-nums transition-all duration-300 ' + (cartBounce ? 'scale-110 border-accent-400 bg-accent-400 text-accent-950 shadow-md shadow-accent-400/40' : 'border-brand-200 bg-brand-50 text-brand-900')}>
           {totalCartItems} ชิ้น
         </span>
       </div>
 
       <div className="max-h-64 w-full min-w-0 space-y-2 overflow-y-auto pr-0.5">
         {cart.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-blue-200 bg-blue-50/30 py-8 text-center">
-            <span aria-hidden="true" className="text-3xl">🛒</span>
+          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-brand-200 bg-brand-50/30 py-8 text-center">
+            <span aria-hidden="true" className="flex h-14 w-14 animate-float items-center justify-center rounded-full bg-brand-100 text-3xl">🛒</span>
             <p className="text-xs font-bold text-slate-500">ยังไม่มีสินค้าในตะกร้า</p>
             <p className="text-xs text-slate-400">กด “+ เพิ่มในตะกร้า” ที่สินค้าที่ต้องการ</p>
           </div>
         ) : (
           cart.map((item, index) => (
-            <div key={item.id} className="flex w-full min-w-0 items-center gap-2 rounded-xl border border-blue-100 bg-white p-2 transition-colors hover:bg-blue-50/40">
+            <div key={item.id} className="flex w-full min-w-0 animate-pop items-center gap-2 rounded-xl border border-slate-200 bg-white p-2 transition-all duration-200 hover:border-brand-200 hover:bg-brand-50/40 hover:shadow-sm">
               <span className="w-5 shrink-0 text-center text-[11px] font-semibold tabular-nums text-slate-400">{index + 1}</span>
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-blue-100 bg-blue-50">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-brand-50">
                 {item.image_url
                   ? <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" />
                   : <span className="text-sm" aria-hidden="true">📦</span>}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-bold leading-tight text-[#1a3a6e]">{item.name}</p>
+                <p className="truncate text-xs font-bold leading-tight text-brand-700">{item.name}</p>
                 <p className="mt-0.5 text-[11px] font-semibold text-slate-500">{item.unit}</p>
               </div>
-              <div className="flex shrink-0 items-center rounded-lg border border-blue-200 bg-white">
-                <button type="button" aria-label={'ลดจำนวน ' + item.name} onClick={() => updateQuantity(item.id, -1)} className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-black text-blue-900 hover:bg-blue-50 active:scale-90">−</button>
+              <div className="flex shrink-0 items-center rounded-lg border border-brand-200 bg-white">
+                <button type="button" aria-label={'ลดจำนวน ' + item.name} onClick={() => updateQuantity(item.id, -1)} className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-black text-brand-900 hover:bg-brand-50 active:scale-90">−</button>
                 <span className="min-w-7 px-1 text-center text-xs font-black tabular-nums text-slate-700">{item.quantity}</span>
-                <button type="button" aria-label={'เพิ่มจำนวน ' + item.name} onClick={() => updateQuantity(item.id, 1)} className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-black text-blue-900 hover:bg-blue-50 active:scale-90">+</button>
+                <button type="button" aria-label={'เพิ่มจำนวน ' + item.name} onClick={() => updateQuantity(item.id, 1)} className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-black text-brand-900 hover:bg-brand-50 active:scale-90">+</button>
               </div>
-              <button type="button" aria-label={'ลบ ' + item.name} onClick={() => removeFromCart(item.id)} className="shrink-0 rounded-lg p-1.5 text-xs font-bold text-red-500 hover:bg-red-50">✕</button>
+              <button type="button" aria-label={'ลบ ' + item.name} onClick={() => removeFromCart(item.id)} className="shrink-0 rounded-lg p-1.5 text-xs font-bold text-slate-400 hover:bg-red-50 hover:text-red-600">✕</button>
             </div>
           ))
         )}
       </div>
     </fieldset>
 
-    <button type="submit" disabled={loading} className={ui.button + ' flex w-full items-center justify-center gap-2 py-3.5 font-black'}>
+    <button type="submit" disabled={loading} className={ui.button + ' flex w-full items-center justify-center gap-2 py-3.5 font-black' + (cart.length > 0 && !loading ? ' ring-4 ring-brand-100' : '')}>
       {loading ? (
         <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /><span>กำลังประมวลผล...</span></>
       ) : (
@@ -140,6 +143,8 @@ const CartFormContent = ({
     </button>
   </form>
 );
+
+const greeting = () => { const h = new Date().getHours(); return h < 12 ? '☀️ อรุณสวัสดิ์' : h < 17 ? '🌤️ สวัสดีตอนบ่าย' : '🌙 สวัสดีตอนเย็น'; };
 
 // ── Pagination ────────────────────────────────────────────────────────────────
 const ITEMS_PER_PAGE = 15;
@@ -165,6 +170,7 @@ function RequisitionForm({ editId }: { editId: string | null }) {
   const requestId = useRef<string | null>(null);
   const submitBusy = useRef(false);
   const [items, setItems] = useState<Item[]>([]);
+  const [itemsReady, setItemsReady] = useState(false);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [allZones, setAllZones] = useState<(Zone & { branch_id: string })[]>([]);
   const [zonesReady, setZonesReady] = useState(false);
@@ -191,6 +197,7 @@ function RequisitionForm({ editId }: { editId: string | null }) {
       ]);
       if (itemsError) alert('โหลดจำนวนสินค้าไม่สำเร็จ กรุณาตรวจสอบว่าเพิ่มคอลัมน์จำนวนคงเหลือในฐานข้อมูลแล้ว');
       if (itemsData) setItems(itemsData);
+      setItemsReady(true);
       if (branchesData) setBranches(branchesData);
       if (zonesError) alert('โหลดโซนไม่สำเร็จ กรุณารีเฟรชก่อนส่งใบเบิก'); else { setAllZones(zonesData || []); setZonesReady(true); }
     }
@@ -243,6 +250,8 @@ function RequisitionForm({ editId }: { editId: string | null }) {
   const removeFromCart = (id: string) =>
     setCart((prev) => prev.filter((item) => item.id !== id));
 
+  const clearCart = () => setCart([]);
+
   const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const handlePreSubmitCheck = (e: React.FormEvent) => {
@@ -270,6 +279,7 @@ function RequisitionForm({ editId }: { editId: string | null }) {
         p_lines: cart.map(item => ({ item_id: item.id, quantity: item.quantity }))
       });
       if (error) throw error;
+      celebrate();
       alert(editId ? 'บันทึกการแก้ไขใบเบิกแล้ว' : 'ส่งใบเบิกเรียบร้อยแล้ว');
       setCart([]); setNote(''); setSearchTerm(''); setCurrentPage(1); requestId.current = null;
       if (editId) window.location.assign('/requisition/my-requests');
@@ -298,7 +308,7 @@ function RequisitionForm({ editId }: { editId: string | null }) {
     requesterName, setRequesterName,
     handlePreSubmitCheck,
     totalCartItems,
-    cart, updateQuantity, removeFromCart,
+    cart, updateQuantity, removeFromCart, clearCart,
     loading: loading || !editReady || Boolean(editError), cartBounce,
   };
 
@@ -307,22 +317,22 @@ function RequisitionForm({ editId }: { editId: string | null }) {
       <div className={ui.wrap}>
 
         <PageHero
-          icon={<img src="/Logo.png" alt="โลโก้" className="h-full w-full object-cover" />}
-          title="ใบเบิกของ สำเพ็ง บุรีรัมย์"
-          subtitle={(editId ? 'แก้ไขใบเบิกที่รออนุมัติ' : 'สร้างใบเบิกใหม่') + ' · ' + department.branch_name}
+          icon={<span aria-hidden="true">📋</span>}
+          title="ใบเบิกของ"
+          subtitle={(editId ? 'แก้ไขใบเบิกที่รออนุมัติ' : greeting() + ' สร้างใบเบิกใหม่') + ' · ' + department.branch_name}
           actions={<>
             {totalCartItems > 0 && (
-              <div className="flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-bold">
+              <div key={totalCartItems} className="flex animate-pop items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-bold backdrop-blur-sm">
                 <span aria-hidden="true">🛒</span>
                 <span className="tabular-nums">{totalCartItems} ชิ้น</span>
-                <span aria-hidden="true" className="text-blue-200">|</span>
-                <span className="tabular-nums text-blue-100">{cart.length} รายการ</span>
+                <span aria-hidden="true" className="text-brand-200">|</span>
+                <span className="tabular-nums text-brand-100">{cart.length} รายการ</span>
               </div>
             )}
           </>} />
 
         {editError && <Notice tone="error">{editError} <Link href="/requisition/my-requests" className="font-bold underline">กลับประวัติ</Link></Notice>}
-        {!editReady && !editError && <p role="status" className="rounded-xl border border-blue-100 bg-white p-4 text-sm font-semibold text-blue-800">กำลังโหลดใบเบิก...</p>}
+        {!editReady && !editError && <p role="status" className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm font-semibold text-brand-800"><span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600" />กำลังโหลดใบเบิก...</p>}
 
         <div className="flex flex-col items-start gap-5 lg:flex-row">
 
@@ -333,46 +343,52 @@ function RequisitionForm({ editId }: { editId: string | null }) {
               <SearchBox label="ค้นหาสินค้า" placeholder="ค้นหาสินค้า เช่น กระดาษ A4, ปากกา..." value={searchTerm} onChange={(v) => { setSearchTerm(v); setCurrentPage(1); }} />
               <p className="ml-auto text-xs font-semibold text-slate-500">
                 {searchTerm
-                  ? <>พบ <b className="text-[#1a3a6e]">{filteredItems.length}</b> รายการสำหรับ “{searchTerm}”<button type="button" className="ml-3 font-black text-blue-700 hover:underline" onClick={() => { setSearchTerm(''); setCurrentPage(1); }}>ล้างตัวกรอง</button></>
-                  : <>สินค้าทั้งหมด <b className="text-[#1a3a6e]">{filteredItems.length}</b> รายการ</>}
+                  ? <>พบ <b className="text-brand-700">{filteredItems.length}</b> รายการสำหรับ “{searchTerm}”<button type="button" className="ml-3 font-black text-brand-700 hover:underline" onClick={() => { setSearchTerm(''); setCurrentPage(1); }}>ล้างตัวกรอง</button></>
+                  : <>สินค้าทั้งหมด <b className="text-brand-700">{filteredItems.length}</b> รายการ</>}
               </p>
             </div>
 
-            {filteredItems.length === 0 ? (
+            {!itemsReady ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4" aria-busy="true" role="status">
+                {Array.from({ length: 8 }, (_, i) => <div key={i} style={{ animationDelay: i * 80 + 'ms' }} className="animate-pulse bg-brand-100 aspect-[3/4] rounded-2xl" />)}
+                <span className="sr-only">กำลังโหลดสินค้า...</span>
+              </div>
+            ) : filteredItems.length === 0 ? (
               <div className={ui.card}><EmptyState icon="📂" title={searchTerm ? `ไม่พบสินค้า “${searchTerm}”` : 'ยังไม่มีสินค้าในระบบ'} hint={searchTerm ? 'ลองเปลี่ยนคำค้นหา' : undefined} /></div>
             ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+              <div key={currentPage} className="stagger-grid grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
                 {pagedItems.map((item) => {
                   const isClicked = clickedItemId === item.id;
                   const inCart = cart.find((c) => c.id === item.id);
                   return (
                     <div key={item.id}
-                      className={'group flex flex-col overflow-hidden rounded-2xl border border-l-4 bg-white shadow-sm transition-all duration-200 ' + (isClicked
-                        ? 'border-blue-300 border-l-[#1a3a6e] ring-2 ring-[#1a3a6e]/70'
-                        : inCart ? 'border-blue-200 border-l-sky-400'
-                        : 'border-blue-100 border-l-blue-100 hover:-translate-y-0.5 hover:shadow-md')}>
+                      className={'group relative flex flex-col overflow-hidden rounded-2xl border bg-white shadow-soft transition-all duration-300 ' + (isClicked
+                        ? 'border-emerald-300 ring-2 ring-emerald-400/70 -translate-y-1 shadow-lift'
+                        : inCart ? 'border-brand-300 ring-1 ring-brand-200 hover:-translate-y-1 hover:shadow-lift'
+                        : 'border-slate-200/80 hover:-translate-y-1 hover:border-brand-200 hover:shadow-lift')}>
                       <div className="relative aspect-square overflow-hidden bg-slate-50">
                         {item.image_url ? (
-                          <img src={item.image_url} alt={item.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                          <img src={item.image_url} alt={item.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center"><span aria-hidden="true" className="text-4xl opacity-20">📦</span></div>
                         )}
                         {inCart && (
-                          <div className="absolute right-2 top-2 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-[#1a3a6e] px-1 text-[10px] font-black text-white shadow-md">{inCart.quantity}</div>
+                          <div key={inCart.quantity} className="absolute right-2 top-2 flex h-6 min-w-6 animate-pop items-center justify-center rounded-full border-2 border-white bg-brand-600 px-1 text-[10px] font-black text-white shadow-md shadow-brand-700/40">{inCart.quantity}</div>
                         )}
+                        {isClicked && <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-1/3 z-10 animate-float-up text-center text-2xl font-black text-white drop-shadow-[0_2px_6px_rgba(29,78,216,.85)]">+1</span>}
                         <div className="absolute bottom-2 left-2">
-                          <span className="rounded-full border border-blue-100 bg-white/90 px-2 py-0.5 text-[10px] font-black text-blue-800 shadow-sm backdrop-blur-sm">{item.unit || 'ชิ้น'}</span>
+                          <span className="rounded-full border border-slate-200 bg-white/90 px-2 py-0.5 text-[10px] font-black text-brand-800 shadow-sm backdrop-blur-sm">{item.unit || 'ชิ้น'}</span>
                         </div>
                       </div>
 
                       <div className="flex flex-1 flex-col gap-2 p-3">
-                        <h4 className="line-clamp-2 flex-1 text-xs font-black leading-snug text-[#1a3a6e]">{item.name}</h4>
-                        {item.stock_quantity != null && <p className="text-[11px] font-semibold text-slate-500">คงเหลือ <span className="tabular-nums">{item.stock_quantity.toLocaleString('th-TH')}</span> {item.unit}</p>}
+                        <h4 className="line-clamp-2 flex-1 text-xs font-black leading-snug text-brand-800">{item.name}</h4>
+                        {item.stock_quantity != null && <p className={'text-[11px] font-semibold ' + (item.stock_quantity <= 0 ? 'text-red-600' : 'text-slate-500')}>{item.stock_quantity <= 0 ? <>⚠️ สินค้าหมด</> : <>คงเหลือ <span className="tabular-nums">{item.stock_quantity.toLocaleString('th-TH')}</span> {item.unit}</>}</p>}
                         <button type="button" disabled={loading} onClick={() => addToCart(item)}
                           className={'w-full rounded-lg px-3 py-2 text-xs font-bold transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 ' + (isClicked
-                            ? 'bg-emerald-600 text-white'
-                            : inCart ? 'bg-[#1a3a6e] text-white shadow-sm hover:bg-blue-800'
-                            : 'border border-blue-200 bg-white text-blue-900 hover:bg-blue-50')}>
+                            ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
+                            : inCart ? 'bg-brand-600 text-white shadow-sm shadow-brand-600/30 hover:shadow-md hover:shadow-brand-600/40'
+                            : 'border border-brand-200 bg-white text-brand-800 hover:border-brand-500 hover:bg-brand-600 hover:text-white')}>
                           {isClicked ? '✓ เพิ่มแล้ว' : inCart ? `+ เพิ่ม (${inCart.quantity})` : '+ เพิ่มในตะกร้า'}
                         </button>
                       </div>
@@ -394,7 +410,7 @@ function RequisitionForm({ editId }: { editId: string | null }) {
                       <span key={`e${idx}`} className="select-none px-1 text-sm text-slate-300">…</span>
                     ) : (
                       <button key={p} aria-current={currentPage === p ? 'page' : undefined} onClick={() => setCurrentPage(p as number)}
-                        className={'h-9 w-9 rounded-lg text-xs font-bold ' + (currentPage === p ? 'bg-[#1a3a6e] text-white shadow-sm' : 'border border-blue-200 bg-white text-blue-900 hover:bg-blue-50')}>{p}</button>
+                        className={'h-9 w-9 rounded-lg text-xs font-bold ' + (currentPage === p ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30' : 'border border-brand-200 bg-white text-brand-800 hover:bg-brand-50')}>{p}</button>
                     )
                   )}
                   <button onClick={() => setCurrentPage((p) => p + 1)} disabled={currentPage === totalPages} className={ui.rowBtn}>ถัดไป →</button>
@@ -406,9 +422,10 @@ function RequisitionForm({ editId }: { editId: string | null }) {
           {/* ── Right: Desktop cart ── */}
           <div className="hidden w-full min-w-0 max-w-full shrink-0 lg:block lg:w-96">
             <div className={ui.card + ' lg:sticky lg:top-6'}>
-              <div className="flex items-center justify-between bg-linear-to-r from-[#1a3a6e] to-[#2d5aa8] px-5 py-4 text-white">
-                <div className="flex items-center gap-2"><span aria-hidden="true">📋</span><h2 className="text-sm font-black">สรุปใบเบิกสินค้า</h2></div>
-                {cart.length > 0 && <span className="rounded-full border border-white/20 bg-white/20 px-2.5 py-1 text-xs font-black">{cart.length} รายการ</span>}
+              <div className="relative flex items-center justify-between overflow-hidden bg-brand-700 px-5 py-4 text-white">
+                
+                <div className="relative flex items-center gap-2"><span aria-hidden="true">📋</span><h2 className="text-sm font-black">สรุปใบเบิกสินค้า</h2></div>
+                {cart.length > 0 && <span key={cart.length} className="relative animate-pop rounded-full border border-white/20 bg-white/20 px-2.5 py-1 text-xs font-black">{cart.length} รายการ</span>}
               </div>
               <div className="p-4"><CartFormContent {...cartFormProps} /></div>
             </div>
@@ -417,16 +434,16 @@ function RequisitionForm({ editId }: { editId: string | null }) {
       </div>
 
       {/* ── Mobile floating bar ── */}
-      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between border-t border-blue-100 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(26,58,110,0.10)] backdrop-blur-md lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-between border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-10px_30px_-10px_rgba(30,64,175,0.30)] backdrop-blur-xl lg:hidden">
         <div className="flex items-center gap-3">
           <div className={'relative transition-transform duration-300 ' + (cartBounce ? 'scale-125' : 'scale-100')}>
             <span aria-hidden="true" className="text-2xl">🛒</span>
             {totalCartItems > 0 && (
-              <span className={'absolute -right-2 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white px-1 text-[10px] font-black text-white shadow-sm transition-all ' + (cartBounce ? 'scale-110 bg-red-600' : 'bg-[#1a3a6e]')}>{totalCartItems}</span>
+              <span className={'absolute -right-2 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white px-1 text-[10px] font-black text-white shadow-sm transition-all ' + (cartBounce ? 'scale-110 bg-accent-400 !text-accent-950' : 'bg-brand-600')}>{totalCartItems}</span>
             )}
           </div>
           <div>
-            <p className="text-sm font-black leading-tight text-[#1a3a6e]">{totalCartItems > 0 ? `${totalCartItems} ชิ้น` : 'ตะกร้าว่างอยู่'}</p>
+            <p className="text-sm font-black leading-tight text-brand-800">{totalCartItems > 0 ? `${totalCartItems} ชิ้น` : 'ตะกร้าว่างอยู่'}</p>
             {cart.length > 0 && <p className="text-[11px] font-semibold text-slate-500">{cart.length} รายการ</p>}
           </div>
         </div>
@@ -435,13 +452,13 @@ function RequisitionForm({ editId }: { editId: string | null }) {
 
       {/* ── Mobile drawer backdrop ── */}
       <div
-        className={'fixed inset-0 z-50 bg-slate-900/50 transition-opacity duration-300 lg:hidden ' + (isCartOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0')}
+        className={'fixed inset-0 z-50 bg-brand-950/55 backdrop-blur-sm transition-opacity duration-300 lg:hidden ' + (isCartOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0')}
         onClick={() => setIsCartOpen(false)}
       />
 
       {/* ── Mobile drawer ── */}
       <div className={'fixed inset-y-0 right-0 z-50 flex w-full flex-col bg-white shadow-2xl transition-transform duration-300 ease-out sm:w-96 lg:hidden ' + (isCartOpen ? 'translate-x-0' : 'translate-x-full')}>
-        <div className="flex items-center justify-between bg-linear-to-r from-[#1a3a6e] to-[#2d5aa8] p-4 text-white">
+        <div className="flex items-center justify-between bg-brand-700 p-4 text-white">
           <div className="flex items-center gap-2"><span aria-hidden="true">📋</span><h3 className="text-sm font-black">สรุปใบเบิกสินค้า</h3></div>
           <button type="button" aria-label="ปิดตะกร้า" onClick={() => setIsCartOpen(false)} className="h-8 w-8 rounded-full bg-white/15 text-xl hover:bg-white/25">×</button>
         </div>
@@ -457,25 +474,25 @@ function RequisitionForm({ editId }: { editId: string | null }) {
           </>}>
           <div className="space-y-4">
             <p className="text-xs font-medium text-slate-500">กรุณาตรวจสอบความถูกต้องก่อนส่ง</p>
-            <div className="rounded-xl bg-blue-50 p-4 text-sm">
-              <p className="flex flex-wrap items-center gap-2 font-bold">{branchName}{zoneName && <span className="text-blue-700">· โซน {zoneName}</span>}</p>
+            <div className="rounded-xl bg-brand-50 p-4 text-sm">
+              <p className="flex flex-wrap items-center gap-2 font-bold">{branchName}{zoneName && <span className="text-brand-700">· โซน {zoneName}</span>}</p>
               <p className="mt-1 text-slate-600">ผู้เบิก {requesterName}</p>
-              {(zones.length > 0 || branchName === 'จัดเรียง') && <p className="mt-1 text-blue-900">ผู้ส่งใบเบิก: {senderName}</p>}
+              {(zones.length > 0 || branchName === 'จัดเรียง') && <p className="mt-1 text-brand-900">ผู้ส่งใบเบิก: {senderName}</p>}
             </div>
-            {note && <p className="whitespace-pre-wrap rounded-xl border border-blue-100 p-3 text-sm text-blue-900"><strong>หมายเหตุ:</strong> {note}</p>}
+            {note && <p className="whitespace-pre-wrap rounded-xl border border-slate-200 p-3 text-sm text-brand-900"><strong>หมายเหตุ:</strong> {note}</p>}
             <div>
-              <p className="mb-2 text-xs font-bold text-blue-800">รายการสินค้า ({totalCartItems} ชิ้น / {cart.length} รายการ)</p>
-              <div className="max-h-60 divide-y divide-blue-50 overflow-y-auto rounded-xl border border-blue-100">
+              <p className="mb-2 text-xs font-bold text-brand-800">รายการสินค้า ({totalCartItems} ชิ้น / {cart.length} รายการ)</p>
+              <div className="max-h-60 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200">
                 {cart.map((item, index) => (
-                  <div key={item.id} className="flex items-center justify-between gap-3 bg-white p-3 transition-colors hover:bg-blue-50/40">
+                  <div key={item.id} className="flex items-center justify-between gap-3 bg-white p-3 transition-colors hover:bg-brand-50/40">
                     <div className="flex min-w-0 flex-1 items-center gap-2.5">
                       <span className="w-5 shrink-0 text-center text-[11px] font-semibold tabular-nums text-slate-400">{index + 1}</span>
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-blue-100 bg-blue-50">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-brand-50">
                         {item.image_url ? <img src={item.image_url} alt={item.name} className="h-full w-full object-cover" /> : <span aria-hidden="true" className="text-xs">📦</span>}
                       </div>
                       <span className="truncate text-xs font-bold text-slate-700">{item.name}</span>
                     </div>
-                    <span className="shrink-0 rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-black tabular-nums text-blue-900">{item.quantity} {item.unit}</span>
+                    <span className="shrink-0 rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-black tabular-nums text-brand-900">{item.quantity} {item.unit}</span>
                   </div>
                 ))}
               </div>
@@ -489,5 +506,5 @@ function RequisitionForm({ editId }: { editId: string | null }) {
 
 function RequisitionRoute() { const id = useSearchParams().get('edit'); return <RequisitionForm key={id || 'new'} editId={id} />; }
 export default function RequisitionPage() {
-  return <Suspense fallback={<div className={ui.page}><div className={ui.wrap} aria-busy="true" role="status"><div className="h-28 animate-pulse rounded-2xl bg-[#1a3a6e]/20" /><span className="sr-only">กำลังโหลดใบเบิก...</span></div></div>}><RequisitionRoute /></Suspense>;
+  return <Suspense fallback={<div className={ui.page}><div className={ui.wrap} aria-busy="true" role="status"><div className="animate-pulse bg-brand-100 h-28 rounded-3xl" /><span className="sr-only">กำลังโหลดใบเบิก...</span></div></div>}><RequisitionRoute /></Suspense>;
 }

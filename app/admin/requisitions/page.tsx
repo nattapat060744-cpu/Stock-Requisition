@@ -383,7 +383,7 @@ export default function AdminRequisitionsPage() {
             <option value="approved">อนุมัติแล้ว</option>
             <option value="rejected">ปฏิเสธ</option>
           </select>
-          <p className="ml-auto text-xs font-semibold text-slate-500">พบ <b className="text-[#1a3a6e]">{totalCount.toLocaleString('th-TH')}</b> ใบ{hasFilter && <button type="button" className="ml-3 font-black text-blue-700 hover:underline" onClick={() => { setSearchTerm(''); handleFilterChange('all'); }}>ล้างตัวกรอง</button>}</p>
+          <p className="ml-auto text-xs font-semibold text-slate-500">พบ <b className="text-brand-700">{totalCount.toLocaleString('th-TH')}</b> ใบ{hasFilter && <button type="button" className="ml-3 font-black text-brand-700 hover:underline" onClick={() => { setSearchTerm(''); handleFilterChange('all'); }}>ล้างตัวกรอง</button>}</p>
         </section>
 
         {loading ? (
@@ -394,9 +394,9 @@ export default function AdminRequisitionsPage() {
           <>
             {Object.entries(groupedRequisitions).map(([date, reqs]) => (
               <section key={date} className={ui.card}>
-                <div className="flex items-center gap-2 border-b border-blue-100 bg-blue-50/70 px-5 py-3">
+                <div className="flex items-center gap-2 border-b border-slate-200 bg-brand-50/70 px-5 py-3">
                   <span aria-hidden="true">🗓️</span>
-                  <h2 className="text-sm font-black text-[#1a3a6e]">{date}</h2>
+                  <h2 className="text-sm font-black text-brand-700">{date}</h2>
                   <span className="ml-auto text-xs font-bold text-slate-500">{reqs.length} รายการ</span>
                 </div>
                 <div className="overflow-x-auto">
@@ -419,23 +419,23 @@ export default function AdminRequisitionsPage() {
                         <th scope="col" className="px-4 py-3.5"><span className="sr-only">ดำเนินการ</span></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-blue-50">
+                    <tbody className="divide-y divide-slate-100">
                       {reqs.map((req) => (
-                        <tr key={req.id} className="align-middle transition-colors hover:bg-blue-50/40">
+                        <tr key={req.id} className="align-middle transition-colors hover:bg-brand-50/40">
                           <td className="whitespace-nowrap px-4 py-4 text-xs font-semibold tabular-nums text-slate-500">
                             {new Date(req.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
                           </td>
                           <td className="px-4 py-4">
-                            <span className="font-black text-[#1a3a6e]">{req.branch_name}</span>
-                            {req.zone_name && <p className="mt-0.5 text-xs font-bold text-blue-700">โซน: {req.zone_name}</p>}
+                            <span className="font-black text-brand-700">{req.branch_name}</span>
+                            {req.zone_name && <p className="mt-0.5 text-xs font-bold text-brand-700">โซน: {req.zone_name}</p>}
                           </td>
                           <td className="px-4 py-4">
                             <span className="flex items-center gap-2">
-                              <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-black text-blue-800">{(req.requester_name || '?').trim().slice(0, 1)}</span>
+                              <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-black text-brand-800">{(req.requester_name || '?').trim().slice(0, 1)}</span>
                               <span className="text-slate-700">{req.requester_name}</span>
                             </span>
                             {needsSender(req) && (
-                              <p className={'mt-1 text-[11px] font-semibold ' + (req.sender_name ? 'text-blue-800' : 'text-amber-700')}>
+                              <p className={'mt-1 text-[11px] font-semibold ' + (req.sender_name ? 'text-brand-800' : 'text-amber-700')}>
                                 หัวหน้า / รองหัวหน้า: {req.sender_name?.trim() || 'ยังไม่ระบุ'}
                               </p>
                             )}
@@ -447,8 +447,8 @@ export default function AdminRequisitionsPage() {
                               </p>
                             )}
                             {req.admin_note?.trim() && (
-                              <p title={req.admin_note} className="mt-1 line-clamp-2 whitespace-pre-wrap wrap-break-word font-semibold text-blue-800">
-                                <span className="text-blue-400">ผู้ตรวจสอบ: </span>{req.admin_note}
+                              <p title={req.admin_note} className="mt-1 line-clamp-2 whitespace-pre-wrap wrap-break-word font-semibold text-brand-800">
+                                <span className="text-brand-400">ผู้ตรวจสอบ: </span>{req.admin_note}
                               </p>
                             )}
                             {!req.note?.trim() && !req.admin_note?.trim() && <span className="text-slate-300">—</span>}
@@ -487,7 +487,7 @@ export default function AdminRequisitionsPage() {
                     <span key={`ellipsis-${idx}`} className="select-none px-2 text-sm text-slate-300">…</span>
                   ) : (
                     <button key={p} aria-current={currentPage === p ? 'page' : undefined} onClick={() => goToPage(p as number)}
-                      className={'h-9 w-9 rounded-lg text-xs font-bold ' + (currentPage === p ? 'bg-[#1a3a6e] text-white shadow-sm' : 'border border-blue-200 bg-white text-blue-900 hover:bg-blue-50')}>
+                      className={'h-9 w-9 rounded-lg text-xs font-bold ' + (currentPage === p ? 'bg-brand-700 text-white shadow-sm' : 'border border-brand-200 bg-white text-brand-900 hover:bg-brand-50')}>
                       {p}
                     </button>
                   )
@@ -504,7 +504,7 @@ export default function AdminRequisitionsPage() {
         <Modal title={modalMode === 'review' ? '📋 ตรวจสอบใบเบิก' : '📄 รายละเอียดใบเบิก'} busy={saving} onClose={closeReview}
           footer={modalMode === 'review' ? (
             <>
-              <span className="mr-auto text-sm font-bold text-blue-900">รวม {details.reduce((sum, d) => sum + (d.price_at_time || 0) * (d.quantity || 0), 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฿</span>
+              <span className="mr-auto text-sm font-bold text-brand-900">รวม {details.reduce((sum, d) => sum + (d.price_at_time || 0) * (d.quantity || 0), 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฿</span>
               <button disabled={saving || loadingDetails || Boolean(detailError)} onClick={() => void submitReview('rejected')} className={ui.danger}>ปฏิเสธใบเบิก</button>
               <button disabled={saving || loadingDetails || Boolean(detailError)} onClick={() => void submitReview('approved')} className={ui.button}>{saving ? 'กำลังบันทึก...' : 'อนุมัติรายการที่เลือก'}</button>
             </>
@@ -512,29 +512,29 @@ export default function AdminRequisitionsPage() {
           {detailError && <div className="mb-4"><Notice tone="error">{detailError}</Notice></div>}
           {loadingDetails ? <Skeleton rows={3} /> : (
             <fieldset disabled={saving} className="min-w-0 space-y-4">
-              <div className="rounded-xl bg-blue-50 p-4 text-sm">
-                <p className="flex flex-wrap items-center gap-2 font-bold">{selectedReq.branch_name}{selectedReq.zone_name && <span className="text-blue-700">· โซน {selectedReq.zone_name}</span>}<StatusBadge status={selectedReq.status} /></p>
+              <div className="rounded-xl bg-brand-50 p-4 text-sm">
+                <p className="flex flex-wrap items-center gap-2 font-bold">{selectedReq.branch_name}{selectedReq.zone_name && <span className="text-brand-700">· โซน {selectedReq.zone_name}</span>}<StatusBadge status={selectedReq.status} /></p>
                 <p className="mt-1 text-slate-500">ผู้เบิก {selectedReq.requester_name} · {new Date(selectedReq.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                 {needsSender(selectedReq) && (
-                  <p className={'mt-2 rounded-lg border p-2 ' + (selectedReq.sender_name ? 'border-blue-100 bg-white text-blue-900' : 'border-amber-200 bg-amber-50 text-amber-800')}>
+                  <p className={'mt-2 rounded-lg border p-2 ' + (selectedReq.sender_name ? 'border-slate-200 bg-white text-brand-900' : 'border-amber-200 bg-amber-50 text-amber-800')}>
                     หัวหน้า / รองหัวหน้าผู้ส่ง: <strong>{selectedReq.sender_name?.trim() || 'ยังไม่ระบุ'}</strong>
                   </p>
                 )}
               </div>
 
-              <p className="whitespace-pre-wrap wrap-break-word rounded-xl border border-blue-100 p-3 text-sm"><strong>หมายเหตุใบเบิก:</strong> {selectedReq.note || '—'}</p>
+              <p className="whitespace-pre-wrap wrap-break-word rounded-xl border border-slate-200 p-3 text-sm"><strong>หมายเหตุใบเบิก:</strong> {selectedReq.note || '—'}</p>
               {modalMode === 'review'
-                ? <label className="block space-y-1.5"><span className="text-xs font-bold text-blue-800">หมายเหตุผู้ตรวจสอบ</span><textarea maxLength={2000} rows={3} value={adminNote} onChange={e => setAdminNote(e.target.value)} placeholder="เช่น ตัดรายการที่ไม่ให้เบิก หรือเหตุผลไม่อนุมัติ" className={ui.input} /></label>
-                : <p className="whitespace-pre-wrap wrap-break-word rounded-xl border border-blue-100 p-3 text-sm"><strong>หมายเหตุผู้ตรวจสอบ:</strong> {selectedReq.admin_note || '—'}</p>}
+                ? <label className="block space-y-1.5"><span className="text-xs font-bold text-brand-800">หมายเหตุผู้ตรวจสอบ</span><textarea maxLength={2000} rows={3} value={adminNote} onChange={e => setAdminNote(e.target.value)} placeholder="เช่น ตัดรายการที่ไม่ให้เบิก หรือเหตุผลไม่อนุมัติ" className={ui.input} /></label>
+                : <p className="whitespace-pre-wrap wrap-break-word rounded-xl border border-slate-200 p-3 text-sm"><strong>หมายเหตุผู้ตรวจสอบ:</strong> {selectedReq.admin_note || '—'}</p>}
               <RequestedItems original={selectedReq.requested_items} current={details} status={selectedReq.status} />
               {modalMode === 'review' && originalDetails.some(d => !details.some(x => x.id === d.id)) && (
                 <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm">
                   <strong className="text-red-700">รายการที่ตัดออก (จะเก็บในประวัติ)</strong>
-                  {originalDetails.filter(d => !details.some(x => x.id === d.id)).map(d => <div key={d.id} className="mt-2 flex justify-between gap-3"><span>{d.items?.name} · {d.quantity} {d.items?.unit}</span><button type="button" onClick={() => setDetails(prev => [...prev, d])} className="font-bold text-blue-800 hover:underline">คืนรายการ</button></div>)}
+                  {originalDetails.filter(d => !details.some(x => x.id === d.id)).map(d => <div key={d.id} className="mt-2 flex justify-between gap-3"><span>{d.items?.name} · {d.quantity} {d.items?.unit}</span><button type="button" onClick={() => setDetails(prev => [...prev, d])} className="font-bold text-brand-800 hover:underline">คืนรายการ</button></div>)}
                 </div>
               )}
 
-              <div className="overflow-x-auto rounded-xl border border-blue-100">
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
                 <table className="w-full min-w-160 text-left text-sm">
                   <thead className={ui.thead}>
                     <tr>
@@ -546,21 +546,21 @@ export default function AdminRequisitionsPage() {
                       {modalMode === 'review' && <th className="w-16 px-3 py-3"><span className="sr-only">ลบ</span></th>}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-blue-50">
+                  <tbody className="divide-y divide-slate-100">
                     {details.map((d, index) => (
-                      <tr key={d.id} className="transition-colors hover:bg-blue-50/40">
+                      <tr key={d.id} className="transition-colors hover:bg-brand-50/40">
                         <td className="px-3 py-3 text-center text-xs font-semibold tabular-nums text-slate-400">{index + 1}</td>
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-3">
                             <button type="button" disabled={!d.items?.image_url}
                               onClick={() => { if (d.items?.image_url) setSelectedImage({ url: d.items.image_url, name: d.items.name }); }}
                               aria-label={`ขยายรูป ${d.items?.name || 'สินค้า'}`} title={d.items?.image_url ? 'กดเพื่อขยายรูป' : 'ไม่มีรูปสินค้า'}
-                              className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-blue-100 bg-blue-50 enabled:cursor-zoom-in enabled:hover:ring-2 enabled:hover:ring-blue-300 focus-visible:outline-2 focus-visible:outline-blue-700">
+                              className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-brand-50 enabled:cursor-zoom-in enabled:hover:ring-2 enabled:hover:ring-brand-300 focus-visible:outline-2 focus-visible:outline-brand-700">
                               <span className="text-2xl" aria-hidden="true">📦</span>
                               {d.items?.image_url && <img src={d.items.image_url} alt="" loading="lazy" className="absolute inset-0 h-full w-full bg-white object-contain p-1" onError={(event) => { event.currentTarget.style.display = 'none'; }} />}
                             </button>
                             <div className="flex flex-1 items-center justify-between gap-2">
-                              <span className="wrap-break-word font-bold text-[#1a3a6e]">{d.items?.name || 'ไม่พบข้อมูลสินค้า'}</span>
+                              <span className="wrap-break-word font-bold text-brand-700">{d.items?.name || 'ไม่พบข้อมูลสินค้า'}</span>
                               {modalMode === 'review' && (
                                 <button type="button" title="เปลี่ยนสินค้าทดแทน" className={ui.rowBtn + ' shrink-0'}
                                   onClick={() => { setActiveDetailId(d.id); setItemSearchTerm(''); setItemSelectorOpen(true); }}>✏️ เปลี่ยน</button>
@@ -571,7 +571,7 @@ export default function AdminRequisitionsPage() {
                         <td className="px-3 py-3 text-center">
                           {modalMode === 'review'
                             ? <input type="number" min="1" max="2147483647" step="1" value={d.quantity} aria-label={'จำนวน ' + (d.items?.name || '')} onChange={(e) => handleDetailChange(d.id, e.target.value)} className={ui.input + ' h-11 text-center font-black'} />
-                            : <span className="font-black text-[#1a3a6e]">{d.quantity}</span>}
+                            : <span className="font-black text-brand-700">{d.quantity}</span>}
                         </td>
                         <td className="px-3 py-3 text-center text-slate-500">{d.items?.unit}</td>
                         <td className="px-3 py-3 text-right font-bold tabular-nums">{(d.price_at_time || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
@@ -582,9 +582,9 @@ export default function AdminRequisitionsPage() {
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr className="border-t border-blue-100 bg-blue-50/40 font-black text-slate-800">
+                    <tr className="border-t border-slate-200 bg-brand-50/40 font-black text-slate-800">
                       <td colSpan={4} className="px-3 py-3 text-right">รวมเป็นเงินทั้งสิ้น</td>
-                      <td className="px-3 py-3 text-right tabular-nums text-[#1a3a6e]" colSpan={modalMode === 'review' ? 2 : 1}>
+                      <td className="px-3 py-3 text-right tabular-nums text-brand-700" colSpan={modalMode === 'review' ? 2 : 1}>
                         {details.reduce((sum, d) => sum + (d.price_at_time || 0) * (d.quantity || 0), 0).toLocaleString('th-TH', { minimumFractionDigits: 2 })} ฿
                       </td>
                     </tr>
@@ -605,13 +605,13 @@ export default function AdminRequisitionsPage() {
             <div className="space-y-2">
               {filteredMasterItems.length === 0 ? <EmptyState icon="📭" title="ไม่พบสินค้าที่ค้นหา" hint="ลองเปลี่ยนคำค้นหา" /> : filteredMasterItems.map((item) => (
                 <button key={item.id} type="button" onClick={() => handleSelectReplacementItem(item)}
-                  className="flex w-full items-center gap-3 rounded-xl border border-blue-100 p-3 text-left transition-colors hover:bg-blue-50/40 focus-visible:outline-2 focus-visible:outline-blue-700">
-                  <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-blue-100 bg-blue-50">
+                  className="flex w-full items-center gap-3 rounded-xl border border-slate-200 p-3 text-left transition-colors hover:bg-brand-50/40 focus-visible:outline-2 focus-visible:outline-brand-700">
+                  <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-brand-50">
                     <span className="text-xl" aria-hidden="true">📦</span>
                     {item.image_url && <img src={item.image_url} alt="" className="absolute inset-0 h-full w-full bg-white object-contain p-1" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-black text-[#1a3a6e]">{item.name}</span>
+                    <span className="block truncate text-sm font-black text-brand-700">{item.name}</span>
                     <span className="mt-0.5 block text-xs text-slate-500">หน่วย {item.unit} · {(item.price ?? 0).toLocaleString('th-TH')} ฿</span>
                   </span>
                   <span className={ui.rowBtnPrimary + ' shrink-0'}>เลือก</span>
@@ -626,11 +626,11 @@ export default function AdminRequisitionsPage() {
         <dialog ref={imageDialogRef} aria-label={`รูปสินค้า ${selectedImage.name}`} onClose={() => setSelectedImage(null)}
           onClick={(event) => { if (event.target === event.currentTarget) imageDialogRef.current?.close(); }}
           className="fixed inset-0 m-auto h-dvh w-screen max-h-none max-w-none border-0 bg-transparent p-4 outline-none backdrop:bg-slate-950/80 open:flex open:items-center open:justify-center">
-          <div className="relative max-w-5xl rounded-2xl border border-blue-100 bg-white p-3 shadow-2xl sm:p-5">
+          <div className="relative max-w-5xl rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl sm:p-5">
             <button type="button" autoFocus aria-label="ปิดรูปขยาย" onClick={() => imageDialogRef.current?.close()}
-              className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-[#1a3a6e] text-xl font-bold text-white shadow-md hover:bg-blue-800">×</button>
+              className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-brand-700 text-xl font-bold text-white shadow-md hover:bg-brand-800">×</button>
             <img src={selectedImage.url} alt={selectedImage.name} className="max-h-[75dvh] max-w-full rounded-xl object-contain" />
-            <p className="mt-3 text-center text-sm font-bold text-[#1a3a6e]">{selectedImage.name}</p>
+            <p className="mt-3 text-center text-sm font-bold text-brand-700">{selectedImage.name}</p>
           </div>
         </dialog>
       )}

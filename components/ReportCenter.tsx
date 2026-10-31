@@ -36,7 +36,7 @@ const isReportType = (value: string | null): value is ReportType => reports.some
 type Chip = { text: string; tone: 'neutral' | 'warn' | 'up' | 'down' };
 
 const CHIP_STYLE: Record<Chip['tone'], string> = {
-  neutral: 'border-blue-100 bg-white text-slate-700',
+  neutral: 'border-slate-200 bg-white text-slate-700',
   warn: 'border-amber-200 bg-amber-50 text-amber-800',
   up: 'border-red-200 bg-red-50 text-red-700',
   down: 'border-emerald-200 bg-emerald-50 text-emerald-700',
@@ -83,8 +83,8 @@ function PreviewChips({ type, hasPreview, preview, failed }: { type: ReportType;
   if (!preview) {
     return (
       <span aria-hidden="true" className="mt-3 flex gap-2">
-        <span className="h-6 w-28 animate-pulse rounded-full bg-blue-100/70" />
-        <span className="h-6 w-20 animate-pulse rounded-full bg-blue-100/70" />
+        <span className="h-6 w-28 animate-pulse rounded-full bg-brand-100/70" />
+        <span className="h-6 w-20 animate-pulse rounded-full bg-brand-100/70" />
       </span>
     );
   }
@@ -153,7 +153,7 @@ function DashboardKpis({ preview, failed, onOpen }: { preview: ReportPreview | n
     return (
       <div aria-hidden="true" className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-5">
         {[0, 1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-28 animate-pulse rounded-2xl border border-blue-100 bg-blue-50/60" />
+          <div key={i} className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-brand-50/60" />
         ))}
       </div>
     );
@@ -168,20 +168,20 @@ function DashboardKpis({ preview, failed, onOpen }: { preview: ReportPreview | n
               {k.label}
               <span aria-hidden="true" className="text-base">{k.icon}</span>
             </span>
-            <span className="mt-1.5 block text-2xl font-black leading-tight tabular-nums text-[#1a3a6e]">
+            <span className="mt-1.5 block text-2xl font-black leading-tight tabular-nums text-brand-700">
               {k.value}
               {k.unit && <span className="ml-1.5 text-xs font-semibold text-slate-400">{k.unit}</span>}
             </span>
             {k.sub && <span className={'mt-1 block text-xs font-bold ' + TONE_TEXT[k.tone]}>{k.sub}</span>}
           </>
         );
-        const cls = 'rounded-2xl border bg-white p-4 text-left shadow-sm ' + (k.tone === 'warn' ? 'border-amber-200' : 'border-blue-100');
+        const cls = 'rounded-2xl border bg-white p-4 text-left shadow-sm ' + (k.tone === 'warn' ? 'border-amber-200' : 'border-slate-200');
         return k.target ? (
           <button
             key={k.label}
             type="button"
             onClick={() => onOpen(k.target!)}
-            className={cls + ' block transition-colors hover:border-blue-300 hover:bg-blue-50/40 focus-visible:outline-2 focus-visible:outline-blue-700'}
+            className={cls + ' block transition-colors hover:border-brand-300 hover:bg-brand-50/40 focus-visible:outline-2 focus-visible:outline-brand-700'}
           >
             {body}
           </button>
@@ -251,32 +251,32 @@ export default function ReportCenter({ initialType = null }: { initialType?: Rep
   const selected = reports.find((report) => report.value === type);
 
   return (
-    <main className="min-h-screen bg-[#e8edf5] px-3 py-6 text-slate-800 sm:px-6 print:bg-white print:p-0">
+    <main className="min-h-screen bg-canvas px-3 py-6 text-slate-800 sm:px-6 print:bg-white print:p-0">
       <div className="mx-auto max-w-[1600px] space-y-5 print:max-w-full">
         {!type ? (
-          <section className="rounded-2xl border border-blue-100 bg-white p-5 sm:p-6">
-            <h1 className="text-xl font-black text-[#1a3a6e]">📈 แดชบอร์ดรายงาน</h1>
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+            <h1 className="text-xl font-black text-brand-700">📈 แดชบอร์ดรายงาน</h1>
             <p className="mt-1 text-sm text-slate-500">สรุปภาพรวมของเดือนนี้ แล้วเลือกรายงานที่ต้องการดูรายละเอียด</p>
 
             <DashboardKpis preview={preview} failed={failed} onOpen={choose} />
 
-            <h2 className="mt-7 text-sm font-black text-[#1a3a6e]">เลือกรายงาน</h2>
+            <h2 className="mt-7 text-sm font-black text-brand-700">เลือกรายงาน</h2>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {reports.map((report) => (
                 <button
                   key={report.value}
                   onClick={() => choose(report.value)}
-                  className="group flex items-start gap-4 rounded-xl border border-blue-100 bg-blue-50/30 p-5 text-left transition-colors hover:border-blue-300 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-700"
+                  className="group flex items-start gap-4 rounded-xl border border-slate-200 bg-brand-50/30 p-5 text-left transition-colors hover:border-brand-300 hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-brand-700"
                 >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-blue-100 bg-white text-xl">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-xl">
                     {report.icon}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block font-black text-blue-900">{report.title}</span>
+                    <span className="block font-black text-brand-900">{report.title}</span>
                     <span className="mt-1 block text-sm leading-relaxed text-slate-500">{report.description}</span>
                     <PreviewChips type={report.value} hasPreview={report.hasPreview} preview={preview} failed={failed} />
                   </span>
-                  <span aria-hidden="true" className="self-center font-bold text-blue-500">→</span>
+                  <span aria-hidden="true" className="self-center font-bold text-brand-500">→</span>
                 </button>
               ))}
             </div>
@@ -291,7 +291,7 @@ export default function ReportCenter({ initialType = null }: { initialType?: Rep
               <button
                 ref={backButton}
                 onClick={returnToMenu}
-                className="inline-flex h-10 items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 text-sm font-bold text-blue-900 hover:bg-blue-50 focus-visible:outline-2 focus-visible:outline-blue-700"
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-brand-200 bg-white px-4 text-sm font-bold text-brand-900 hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-brand-700"
               >
                 ← เลือกรายงานอื่น
               </button>

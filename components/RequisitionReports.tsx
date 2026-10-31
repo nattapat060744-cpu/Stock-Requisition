@@ -12,7 +12,6 @@ import {
   View,
   StyleSheet,
   Font,
-  Image as PDFImage,
 } from '@react-pdf/renderer';
 
 interface ReportItemSummary {
@@ -48,10 +47,10 @@ const styles = StyleSheet.create({
   subHeader2: { fontSize: 14, textAlign: 'center', marginBottom: 20 },
   dateTextLeft: { fontSize: 16, textAlign: 'left', marginBottom: 15, paddingLeft: 5 },
   table: { display: 'flex', flexDirection: 'column', width: '100%', borderTop: '1px solid #000', borderLeft: '1px solid #000', marginBottom: 20 },
-  tableHeader: { flexDirection: 'row', backgroundColor: '#1a3a6e', fontWeight: 'bold' },
+  tableHeader: { flexDirection: 'row', backgroundColor: '#1d4ed8', fontWeight: 'bold' },
   row: { flexDirection: 'row' },
   cell: { padding: 5, fontSize: 14, borderRight: '1px solid #000', borderBottom: '1px solid #000', color: '#000000', fontWeight: 'bold',},
-  footerRow: { flexDirection: 'row', backgroundColor: '#17386d' },
+  footerRow: { flexDirection: 'row', backgroundColor: '#1e3a8a' },
   signatureContainer: { marginTop: 30 },
   sigRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
   sigBox: { width: '45%', textAlign: 'center', fontSize: 12 },
@@ -86,9 +85,8 @@ const ReportPDF = ({
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <PDFImage style={styles.logo} src="/Logo.png" />
         <Text style={styles.subHeader}>ใบเบิกวัสดุอุปกรณ์และสินค้า (Supply Use) ประจำวัน</Text>
-        <Text style={styles.subHeader2}>สรุปรายละเอียดการใช้วัสดุสิ้นเปลืองและการเบิกจ่ายสินค้า (สำเพ็ง บุรีรัมย์) รวมทั้งหมด</Text>
+        <Text style={styles.subHeader2}>สรุปรายละเอียดการใช้วัสดุสิ้นเปลืองและการเบิกจ่ายสินค้า (ระบบเบิกของ) รวมทั้งหมด</Text>
         <Text style={styles.dateTextLeft}>{dateLabel}</Text>
 
         <View style={styles.table}>
@@ -213,7 +211,7 @@ function PaginationBar({
   const from = (current - 1) * PAGE_SIZE + 1;
   const to   = Math.min(current * PAGE_SIZE, totalRows);
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-blue-100">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-200">
       <p className="text-xs font-semibold text-slate-400">
         แสดง {from}–{to} จาก {totalRows.toLocaleString('th-TH')} รายการ
       </p>
@@ -221,7 +219,7 @@ function PaginationBar({
         <button
           onClick={() => onGo(current - 1)}
           disabled={current === 1}
-          className="px-3 py-1.5 rounded-xl text-xs font-bold border border-blue-100 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
+          className="px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-brand-50 text-brand-700 hover:bg-brand-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
         >
           ← ก่อนหน้า
         </button>
@@ -234,8 +232,8 @@ function PaginationBar({
               onClick={() => onGo(p as number)}
               className={`w-8 h-8 rounded-xl text-xs font-bold transition-all active:scale-95 ${
                 current === p
-                  ? 'bg-linear-to-r from-blue-700 to-blue-800 text-white shadow-sm shadow-blue-700/30'
-                  : 'border border-blue-100 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                  ? 'bg-brand-700 text-white shadow-sm shadow-brand-700/30'
+                  : 'border border-slate-200 bg-brand-50 text-brand-700 hover:bg-brand-100'
               }`}
             >
               {p}
@@ -245,7 +243,7 @@ function PaginationBar({
         <button
           onClick={() => onGo(current + 1)}
           disabled={current === total}
-          className="px-3 py-1.5 rounded-xl text-xs font-bold border border-blue-100 bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
+          className="px-3 py-1.5 rounded-xl text-xs font-bold border border-slate-200 bg-brand-50 text-brand-700 hover:bg-brand-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
         >
           ถัดไป →
         </button>
@@ -580,7 +578,7 @@ export default function AdminReportsPage() {
     row.eachCell((cell) => {
       cell.fill      = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1a3a6e' } };
       cell.font      = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
-      cell.border    = { top: { style: 'thin', color: { argb: 'FF2451a0' } }, left: { style: 'thin', color: { argb: 'FF2451a0' } }, bottom: { style: 'thin', color: { argb: 'FF2451a0' } }, right: { style: 'thin', color: { argb: 'FF2451a0' } } };
+      cell.border    = { top: { style: 'thin', color: { argb: 'FF4F46E5' } }, left: { style: 'thin', color: { argb: 'FF4F46E5' } }, bottom: { style: 'thin', color: { argb: 'FF4F46E5' } }, right: { style: 'thin', color: { argb: 'FF4F46E5' } } };
       cell.alignment = { horizontal: 'center', vertical: 'middle' };
     });
   };
@@ -620,10 +618,10 @@ export default function AdminReportsPage() {
 
   if (loading)
     return (
-      <div className="min-h-screen flex items-center justify-center bg-blue-50/40">
+      <div className="min-h-screen flex items-center justify-center bg-brand-50/40">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-full border-4 border-blue-200 border-t-blue-600 animate-spin" />
-          <p className="text-blue-700 font-bold text-base">กำลังคำนวณข้อมูลสรุปยอด...</p>
+          <div className="w-12 h-12 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin" />
+          <p className="text-brand-700 font-bold text-base">กำลังคำนวณข้อมูลสรุปยอด...</p>
         </div>
       </div>
     );
@@ -652,11 +650,11 @@ export default function AdminReportsPage() {
                 {({ loading: pdfLoading }) => (
                   <div className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer border ${
                     pdfLoading
-                      ? 'bg-blue-50 text-blue-700 border-blue-100'
-                      : 'bg-white text-slate-700 border-blue-100 hover:border-blue-400 hover:bg-blue-50/50 shadow-sm active:scale-95'
+                      ? 'bg-brand-50 text-brand-700 border-slate-200'
+                      : 'bg-white text-slate-700 border-slate-200 hover:border-brand-400 hover:bg-brand-50/50 shadow-sm active:scale-95'
                   }`}>
                     {pdfLoading ? (
-                      <><div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" /><span>กำลังเตรียม...</span></>
+                      <><div className="w-4 h-4 border-2 border-brand-400 border-t-transparent rounded-full animate-spin" /><span>กำลังเตรียม...</span></>
                     ) : (
                       <><span>📄</span><span>PDF</span></>
                     )}
@@ -681,36 +679,36 @@ export default function AdminReportsPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-xs font-black text-blue-700 uppercase tracking-widest">📋 รูปแบบรายงาน</label>
+              <label className="text-xs font-black text-brand-700 uppercase tracking-widest">📋 รูปแบบรายงาน</label>
               <select
                 value={selectedReportType}
                 onChange={(e) => handleReportTypeChange(e.target.value)}
-                className="w-full h-11 px-4 bg-blue-50/50 border border-blue-100 rounded-xl font-semibold text-sm text-slate-700 outline-none cursor-pointer focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
+                className="w-full h-11 px-4 bg-brand-50/50 border border-slate-200 rounded-xl font-semibold text-sm text-slate-700 outline-none cursor-pointer focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-all"
               >
                 <option value="compare">💵 สรุปยอดเงินรายแผนก</option>
                 <option value="items">📦 รายการของที่เบิก</option>
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-black text-blue-700 uppercase tracking-widest">🏬 แผนก</label>
+              <label className="text-xs font-black text-brand-700 uppercase tracking-widest">🏬 แผนก</label>
               <select
                 value={selectedBranch}
                 onChange={(e) => handleBranchChange(e.target.value)}
-                className="w-full h-11 px-4 bg-blue-50/50 border border-blue-100 rounded-xl font-semibold text-sm text-slate-700 outline-none cursor-pointer focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
+                className="w-full h-11 px-4 bg-brand-50/50 border border-slate-200 rounded-xl font-semibold text-sm text-slate-700 outline-none cursor-pointer focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-all"
               >
                 <option value="all">ทุกแผนก</option>
                 {allBranches.map((b) => <option key={b} value={b}>{b}</option>)}
               </select>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 sm:col-span-2"><p className="text-xs font-bold text-slate-600">พบ {currentData.totalOrders.toLocaleString('th-TH')} ใบเบิก · {currentData.itemsList.length.toLocaleString('th-TH')} รายการสินค้า · {currentData.branchSummaries.length.toLocaleString('th-TH')} แผนก</p><button type="button" onClick={()=>{setSelectedBranch('all');setSelectedZone('all');setDateFrom('');setDateTo('');resetPages();}} className="text-xs font-black text-blue-700 hover:underline">ล้างตัวกรองทั้งหมด</button></div>
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-4 py-3 sm:col-span-2"><p className="text-xs font-bold text-slate-600">พบ {currentData.totalOrders.toLocaleString('th-TH')} ใบเบิก · {currentData.itemsList.length.toLocaleString('th-TH')} รายการสินค้า · {currentData.branchSummaries.length.toLocaleString('th-TH')} แผนก</p><button type="button" onClick={()=>{setSelectedBranch('all');setSelectedZone('all');setDateFrom('');setDateTo('');resetPages();}} className="text-xs font-black text-brand-700 hover:underline">ล้างตัวกรองทั้งหมด</button></div>
             {/* โซน — โชว์เฉพาะเมื่อเลือกแผนกจัดเรียง */}
             {allZones.some(zone=>selectedBranch==='all'||zone.branch_id===branchIdMap[selectedBranch]) && (
               <div className="space-y-2">
-                <label className="text-xs font-black text-blue-700 uppercase tracking-widest">🗂️ โซน</label>
+                <label className="text-xs font-black text-brand-700 uppercase tracking-widest">🗂️ โซน</label>
                 <select
                   value={selectedZone}
                   onChange={(e) => { setSelectedZone(e.target.value); resetPages(); }}
-                  className="w-full h-11 px-4 bg-blue-50/50 border border-blue-200 rounded-xl font-semibold text-sm text-slate-700 outline-none cursor-pointer focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
+                  className="w-full h-11 px-4 bg-brand-50/50 border border-brand-200 rounded-xl font-semibold text-sm text-slate-700 outline-none cursor-pointer focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-all"
                 >
                   <option value="all">ทุกโซน</option>
                   {allZones
@@ -723,7 +721,7 @@ export default function AdminReportsPage() {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-black text-blue-700 uppercase tracking-widest">📅 ช่วงวันที่</label>
+              <label className="text-xs font-black text-brand-700 uppercase tracking-widest">📅 ช่วงวันที่</label>
               {(dateFrom || dateTo) && (
                 <button onClick={() => applyPreset('all')} className="text-xs text-red-500 font-bold hover:underline">✕ ล้างช่วงวันที่</button>
               )}
@@ -735,8 +733,8 @@ export default function AdminReportsPage() {
                   onClick={() => applyPreset(p.key)}
                   className={`px-3.5 py-2 rounded-xl text-sm font-bold border transition-all ${
                     isActivePreset(p.key)
-                      ? 'bg-blue-500 text-white border-blue-500 shadow-sm'
-                      : 'bg-blue-50/60 text-slate-600 border-blue-100 hover:border-blue-400 hover:text-blue-900'
+                      ? 'bg-brand-500 text-white border-brand-500 shadow-sm'
+                      : 'bg-brand-50/60 text-slate-600 border-slate-200 hover:border-brand-400 hover:text-brand-900'
                   }`}
                 >
                   {p.label}
@@ -751,7 +749,7 @@ export default function AdminReportsPage() {
                   value={dateFrom}
                   max={dateTo || undefined}
                   onChange={(e) => handleDateFromChange(e.target.value)}
-                  className="w-full h-11 px-4 bg-blue-50/50 border border-blue-100 rounded-xl font-semibold text-slate-700 text-sm outline-none cursor-pointer focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
+                  className="w-full h-11 px-4 bg-brand-50/50 border border-slate-200 rounded-xl font-semibold text-slate-700 text-sm outline-none cursor-pointer focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-all"
                 />
               </div>
               <div className="space-y-1.5">
@@ -761,14 +759,14 @@ export default function AdminReportsPage() {
                   value={dateTo}
                   min={dateFrom || undefined}
                   onChange={(e) => handleDateToChange(e.target.value)}
-                  className="w-full h-11 px-4 bg-blue-50/50 border border-blue-100 rounded-xl font-semibold text-slate-700 text-sm outline-none cursor-pointer focus:ring-2 focus:ring-blue-300 focus:border-blue-400 transition-all"
+                  className="w-full h-11 px-4 bg-brand-50/50 border border-slate-200 rounded-xl font-semibold text-slate-700 text-sm outline-none cursor-pointer focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-all"
                 />
               </div>
             </div>
             {(dateFrom || dateTo) && (
-              <div className="flex items-center gap-2 px-4 py-3 bg-blue-50 rounded-xl border border-blue-100">
+              <div className="flex items-center gap-2 px-4 py-3 bg-brand-50 rounded-xl border border-slate-200">
                 <span>📌</span>
-                <span className="text-sm font-bold text-blue-900">
+                <span className="text-sm font-bold text-brand-900">
                   กำลังดูข้อมูล: <span className="text-slate-700">{dateRangeLabel}</span>
                 </span>
               </div>
@@ -777,28 +775,28 @@ export default function AdminReportsPage() {
         </div>
 
         {/* ── Report Document ── */}
-        <div className="bg-white p-6 sm:p-10 rounded-2xl shadow-sm shadow-blue-100/50 border border-blue-100 print:shadow-none print:border-none print:p-0">
+        <div className="bg-white p-6 sm:p-10 rounded-2xl shadow-sm shadow-brand-100/50 border border-slate-200 print:shadow-none print:border-none print:p-0">
 
-          <div className="text-center border-b-2 border-blue-200 pb-5 space-y-1 print:border-slate-900">
-            <p className="inline-flex items-center gap-2 text-xs font-black text-blue-700 uppercase tracking-widest mb-2 print:hidden">
-              <span className="w-8 h-px bg-blue-200" />สำเพ็ง บุรีรัมย์ Report<span className="w-8 h-px bg-blue-200" />
+          <div className="text-center border-b-2 border-brand-200 pb-5 space-y-1 print:border-slate-900">
+            <p className="inline-flex items-center gap-2 text-xs font-black text-brand-700 uppercase tracking-widest mb-2 print:hidden">
+              <span className="w-8 h-px bg-brand-200" />ระบบเบิกของ · Report<span className="w-8 h-px bg-brand-200" />
             </p>
             <h2 className="text-xl font-black text-slate-800">{getReportHeaderTitle()}</h2>
             <p className="text-sm font-semibold text-slate-400">{dateRangeLabel}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4 my-6">
-            <div className="bg-blue-50/60 p-5 rounded-xl border border-blue-100 text-center">
-              <span className="block text-xs font-black text-blue-700 uppercase tracking-widest">ใบเบิกที่อนุมัติ</span>
+            <div className="bg-brand-50/60 p-5 rounded-xl border border-slate-200 text-center">
+              <span className="block text-xs font-black text-brand-700 uppercase tracking-widest">ใบเบิกที่อนุมัติ</span>
               <div className="mt-2 flex items-baseline justify-center gap-1">
                 <span className="text-3xl font-black text-slate-800">{currentData.totalOrders}</span>
                 <span className="text-sm font-bold text-slate-400">ฉบับ</span>
               </div>
             </div>
-            <div className="bg-linear-to-br from-blue-50 to-blue-50/60 p-5 rounded-xl border border-blue-100 text-center">
-              <span className="block text-xs font-black text-blue-700 uppercase tracking-widest">รวมงบที่ใช้เบิก</span>
+            <div className="bg-brand-50 p-5 rounded-xl border border-slate-200 text-center">
+              <span className="block text-xs font-black text-brand-700 uppercase tracking-widest">รวมงบที่ใช้เบิก</span>
               <div className="mt-2 flex items-baseline justify-center gap-1">
-                <span className="text-3xl font-black text-blue-900">{currentData.totalBudget.toLocaleString('th-TH')}</span>
+                <span className="text-3xl font-black text-brand-900">{currentData.totalBudget.toLocaleString('th-TH')}</span>
                 <span className="text-sm font-bold text-slate-400">บาท</span>
               </div>
             </div>
@@ -809,7 +807,7 @@ export default function AdminReportsPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black text-slate-700 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-600" />
+                  <span className="w-2 h-2 rounded-full bg-brand-600" />
                   ตารางสรุปงบประมาณรายแผนก
                 </h3>
                 {currentData.branchSummaries.length > 0 && (
@@ -820,33 +818,33 @@ export default function AdminReportsPage() {
               </div>
               <table className="w-full text-left border-collapse text-sm">
                 <thead>
-                  <tr className="bg-blue-50 text-blue-800 font-black uppercase tracking-wide">
-                    <th className="p-3 border border-blue-100">ชื่อแผนก</th>
-                    <th className="p-3 border border-blue-100 text-center w-36">จำนวนใบเบิก</th>
-                    <th className="p-3 border border-blue-100 text-right w-52">งบประมาณที่ใช้ไป</th>
+                  <tr className="bg-brand-50 text-brand-800 font-black uppercase tracking-wide">
+                    <th className="p-3 border border-slate-200">ชื่อแผนก</th>
+                    <th className="p-3 border border-slate-200 text-center w-36">จำนวนใบเบิก</th>
+                    <th className="p-3 border border-slate-200 text-right w-52">งบประมาณที่ใช้ไป</th>
                   </tr>
                 </thead>
                 <tbody className="font-medium text-slate-700">
                   {pagedBranches.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="py-10 text-center text-blue-400 font-bold">ไม่มีข้อมูลในช่วงเวลาที่เลือก</td>
+                      <td colSpan={3} className="py-10 text-center text-brand-400 font-bold">ไม่มีข้อมูลในช่วงเวลาที่เลือก</td>
                     </tr>
                   ) : (
                     <>
                       {pagedBranches.map((b, idx) => (
-                        <tr key={b.branchName} className={`hover:bg-blue-50/40 transition-colors ${idx % 2 === 1 ? 'bg-blue-50/20' : ''}`}>
-                          <td className="p-3 border border-blue-100/60 font-bold">
-                            <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-[#c8a230]" />{b.branchName}</div>
+                        <tr key={b.branchName} className={`hover:bg-brand-50/40 transition-colors ${idx % 2 === 1 ? 'bg-brand-50/20' : ''}`}>
+                          <td className="p-3 border border-slate-200/60 font-bold">
+                            <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]" />{b.branchName}</div>
                           </td>
-                          <td className="p-3 border border-blue-100/60 text-center">{b.totalOrders}</td>
-                          <td className="p-3 border border-blue-100/60 text-right font-bold">{b.totalBudget.toLocaleString('th-TH')} ฿</td>
+                          <td className="p-3 border border-slate-200/60 text-center">{b.totalOrders}</td>
+                          <td className="p-3 border border-slate-200/60 text-right font-bold">{b.totalBudget.toLocaleString('th-TH')} ฿</td>
                         </tr>
                       ))}
                       {/* Grand total always shows full sum */}
-                      <tr className="bg-[#1a3a6e] text-white font-black">
-                        <td className="p-3 border border-blue-500">รวมงบสุทธิ (Grand Total)</td>
-                        <td className="p-3 border border-blue-500 text-center">{currentData.totalOrders}</td>
-                        <td className="p-3 border border-blue-500 text-right">{currentData.totalBudget.toLocaleString('th-TH')} ฿</td>
+                      <tr className="bg-brand-700 text-white font-black">
+                        <td className="p-3 border border-brand-500">รวมงบสุทธิ (Grand Total)</td>
+                        <td className="p-3 border border-brand-500 text-center">{currentData.totalOrders}</td>
+                        <td className="p-3 border border-brand-500 text-right">{currentData.totalBudget.toLocaleString('th-TH')} ฿</td>
                       </tr>
                     </>
                   )}
@@ -866,7 +864,7 @@ export default function AdminReportsPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black text-slate-700 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-600" />
+                  <span className="w-2 h-2 rounded-full bg-brand-600" />
                   รายการสิ่งของวัสดุในการเบิกสะสมรวม
                 </h3>
                 {currentData.itemsList.length > 0 && (
@@ -877,18 +875,18 @@ export default function AdminReportsPage() {
               </div>
               <table className="w-full text-left border-collapse text-sm">
                 <thead>
-                  <tr className="bg-blue-50 text-blue-800 font-black uppercase tracking-wide">
-                    <th className="p-3 border border-blue-100 w-12 text-center">ลำดับ</th>
-                    <th className="p-3 border border-blue-100">รายการสิ่งของ</th>
-                    <th className="p-3 border border-blue-100 text-center w-24">จำนวนรวม</th>
-                    <th className="p-3 border border-blue-100 text-center w-24">หน่วย</th>
-                    <th className="p-3 border border-blue-100 text-right w-48">งบประมาณรวม</th>
+                  <tr className="bg-brand-50 text-brand-800 font-black uppercase tracking-wide">
+                    <th className="p-3 border border-slate-200 w-12 text-center">ลำดับ</th>
+                    <th className="p-3 border border-slate-200">รายการสิ่งของ</th>
+                    <th className="p-3 border border-slate-200 text-center w-24">จำนวนรวม</th>
+                    <th className="p-3 border border-slate-200 text-center w-24">หน่วย</th>
+                    <th className="p-3 border border-slate-200 text-right w-48">งบประมาณรวม</th>
                   </tr>
                 </thead>
                 <tbody className="font-medium text-slate-700">
                   {pagedItems.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-10 text-center text-blue-400 font-bold">ไม่มีรายการที่อนุมัติในเงื่อนไขนี้</td>
+                      <td colSpan={5} className="py-10 text-center text-brand-400 font-bold">ไม่มีรายการที่อนุมัติในเงื่อนไขนี้</td>
                     </tr>
                   ) : (
                     <>
@@ -896,30 +894,30 @@ export default function AdminReportsPage() {
                         // Keep global index for display (not reset per page)
                         const globalIdx = (itemsPage - 1) * PAGE_SIZE + idx;
                         return (
-                          <tr key={JSON.stringify([item.branch_name,item.zone_name,item.name,item.unit])} className={`hover:bg-blue-50/40 transition-colors ${idx % 2 === 1 ? 'bg-blue-50/20' : ''}`}>
-                            <td className="p-3 border border-blue-100/60 text-center text-blue-400 font-bold">{globalIdx + 1}</td>
-                            <td className="p-3 border border-blue-100/60 font-bold">
+                          <tr key={JSON.stringify([item.branch_name,item.zone_name,item.name,item.unit])} className={`hover:bg-brand-50/40 transition-colors ${idx % 2 === 1 ? 'bg-brand-50/20' : ''}`}>
+                            <td className="p-3 border border-slate-200/60 text-center text-brand-400 font-bold">{globalIdx + 1}</td>
+                            <td className="p-3 border border-slate-200/60 font-bold">
                               <div>{item.name}</div>
-                              <div className="text-xs text-blue-700 font-semibold mt-0.5">{item.branch_name}{item.zone_name?' · โซน '+item.zone_name:''}</div>
+                              <div className="text-xs text-brand-700 font-semibold mt-0.5">{item.branch_name}{item.zone_name?' · โซน '+item.zone_name:''}</div>
                             </td>
-                            <td className="p-3 border border-blue-100/60 text-center font-bold">
-                              <span className="bg-blue-50 text-blue-900 px-2.5 py-1 rounded-lg border border-blue-100">
+                            <td className="p-3 border border-slate-200/60 text-center font-bold">
+                              <span className="bg-brand-50 text-brand-900 px-2.5 py-1 rounded-lg border border-slate-200">
                                 {item.totalQuantity}
                               </span>
                             </td>
-                            <td className="p-3 border border-blue-100/60 text-center text-slate-500 font-semibold">
+                            <td className="p-3 border border-slate-200/60 text-center text-slate-500 font-semibold">
                               {item.unit}
                             </td>
-                            <td className="p-3 border border-blue-100/60 text-right">{item.totalCost.toLocaleString('th-TH')} ฿</td>
+                            <td className="p-3 border border-slate-200/60 text-right">{item.totalCost.toLocaleString('th-TH')} ฿</td>
                           </tr>
                         );
                       })}
                       {/* Total row always uses full sum */}
-                      <tr className="bg-[#1a3a6e] text-white font-black">
-                        <td colSpan={2} className="p-3 border border-blue-500">รวมยอดสุทธิ (Total)</td>
-                        <td className="p-3 border border-blue-500 text-center">{itemsTotalQty.toLocaleString('th-TH')}</td>
-                        <td className="p-3 border border-blue-500 text-center">รายการ</td>
-                        <td className="p-3 border border-blue-500 text-right">{itemsTotalCost.toLocaleString('th-TH')} ฿</td>
+                      <tr className="bg-brand-700 text-white font-black">
+                        <td colSpan={2} className="p-3 border border-brand-500">รวมยอดสุทธิ (Total)</td>
+                        <td className="p-3 border border-brand-500 text-center">{itemsTotalQty.toLocaleString('th-TH')}</td>
+                        <td className="p-3 border border-brand-500 text-center">รายการ</td>
+                        <td className="p-3 border border-brand-500 text-right">{itemsTotalCost.toLocaleString('th-TH')} ฿</td>
                       </tr>
                     </>
                   )}

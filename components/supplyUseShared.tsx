@@ -13,7 +13,7 @@ export const NUM_W = 44; // ความกว้างคอลัมน์ "#"
 export const NUM_STYLE: CSSProperties = { width: NUM_W, minWidth: NUM_W, maxWidth: NUM_W };
 export const COL_W = 120; // ความกว้างคอลัมน์ชื่อสินค้า/แผนก (ชื่อยาวขึ้น 3 บรรทัด ที่เหลือชี้เมาส์ดูเต็ม)
 export const COL_STYLE: CSSProperties = { width: COL_W, minWidth: COL_W, maxWidth: COL_W };
-export const SELECT = 'h-10 rounded-xl border border-blue-100 bg-white px-3 text-sm font-semibold text-slate-700 focus-visible:outline-2 focus-visible:outline-blue-700';
+export const SELECT = 'h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 focus-visible:outline-2 focus-visible:outline-brand-700';
 
 /* ───────────────────────── ตัวช่วย ───────────────────────── */
 export const fmt = (n: number) =>
